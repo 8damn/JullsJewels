@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Produkty{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>Produkty</h1>
+  <a href="/admin/products/new" class="btn btn--primary btn--sm">+ Nový produkt</a>
+</div>
+
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead>
+      <tr><th>Název</th><th>Kategorie</th><th>Cena</th><th>Aktivní</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{{ p.title_cs }}</td>
+        <td>{{ p.category.title_cs if p.category else '—' }}</td>
+        <td>{{ p.base_price | price }}</td>
+        <td>
+          <form method="post" action="/admin/products/{{ p.id }}/toggle">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--outline btn--sm">{{ '✓ ano' if p.is_active else '✗ ne' }}</button>
+          </form>
+        </td>
+        <td style="display:flex;gap:.5rem">
+          <a href="/admin/products/{{ p.id }}/edit" class="btn btn--outline btn--sm">Upravit</a>
+          <form method="post" action="/admin/products/{{ p.id }}/delete"
+                onsubmit="return confirm('Smazat produkt?')">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

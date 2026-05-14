@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>Dashboard</h1>
+</div>
+
+<div class="admin-stats">
+  <div class="admin-stat">
+    <p class="admin-stat__label">Objednávky celkem</p>
+    <p class="admin-stat__value">{{ stats.orders_total }}</p>
+  </div>
+  <div class="admin-stat">
+    <p class="admin-stat__label">Čeká na platbu</p>
+    <p class="admin-stat__value">{{ stats.orders_pending }}</p>
+  </div>
+  <div class="admin-stat">
+    <p class="admin-stat__label">Zaplaceno</p>
+    <p class="admin-stat__value">{{ stats.orders_paid }}</p>
+  </div>
+  <div class="admin-stat">
+    <p class="admin-stat__label">Tržby (zaplacené)</p>
+    <p class="admin-stat__value accent">{{ stats.revenue | price }}</p>
+  </div>
+  <div class="admin-stat">
+    <p class="admin-stat__label">Produkty</p>
+    <p class="admin-stat__value">{{ stats.products }}</p>
+  </div>
+  <div class="admin-stat">
+    <p class="admin-stat__label">Blog články</p>
+    <p class="admin-stat__value">{{ stats.blog_posts }}</p>
+  </div>
+</div>
+
+<div class="admin-card">
+  <h2>Poslední objednávky</h2>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>#</th><th>E-mail</th><th>Celkem</th><th>Platba</th><th>Stav</th><th>Datum</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for o in recent_orders %}
+        <tr>
+          <td>{{ o.id }}</td>
+          <td>{{ o.customer_email }}</td>
+          <td>{{ o.total_price | price }}</td>
+          <td><span class="badge badge--{{ o.payment_status }}">{{ o.payment_status }}</span></td>
+          <td><span class="badge badge--{{ o.fulfillment_status }}">{{ o.fulfillment_status }}</span></td>
+          <td>{{ o.created_at.strftime('%d.%m.%Y') }}</td>
+          <td><a href="/admin/orders/{{ o.id }}" class="btn btn--outline btn--sm">detail</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

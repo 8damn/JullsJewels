@@ -1,0 +1,18 @@
+<article class="product-card">
+  <a href="/products/{{ product.slug }}">
+    {% if product.images %}
+      <img class="product-card__img" src="{{ product.images[0].image_url }}" alt="{{ product.images[0].alt_text_cs if lang == 'cs' else product.images[0].alt_text_en }}">
+    {% else %}
+      <div class="product-card__img" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.85rem">foto</div>
+    {% endif %}
+  </a>
+  <div class="product-card__body">
+    <p class="product-card__name">{{ product.title_cs if lang == 'cs' else product.title_en }}</p>
+    <p class="product-card__price">{{ product.base_price | price }}</p>
+    <form method="post" action="/cart/add">
+      {{ csrf_input(csrf_token) }}
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <button type="submit" class="btn btn--outline btn--sm btn--full">{{ t("product.add_to_cart") }}</button>
+    </form>
+  </div>
+</article>

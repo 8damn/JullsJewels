@@ -1,0 +1,210 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Upravit produkt' if product else 'Nový produkt' }}{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>{{ 'Upravit: ' + product.title_cs if product else 'Nový produkt' }}</h1>
+  <a href="/admin/products" class="btn btn--outline btn--sm">← Zpět</a>
+</div>
+
+<form method="post" action="{{ '/admin/products/' + product.id|string + '/edit' if product else '/admin/products/new' }}"
+      enctype="multipart/form-data" class="admin-form" id="product-form">
+  {{ csrf_input(csrf_token) }}
+
+  <div class="admin-card">
+    <h2>Základní informace</h2>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Název (CS)</label>
+          <input type="text" name="title_cs" id="title-cs" required value="{{ product.title_cs if product else '' }}">
+        </div>
+        <div class="form-group">
+          <label>Název (EN)</label>
+          <input type="text" name="title_en" value="{{ product.title_en if product else '' }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Slug (URL) <span class="muted" style="font-weight:400;font-size:.8rem">— generuje se automaticky</span></label>
+          <input type="text" name="slug" id="slug-input" required value="{{ product.slug if product else '' }}"
+                 placeholder="zlaty-prsten-rubin">
+        </div>
+        <div class="form-group">
+          <label>Kategorie</label>
+          <select name="category_id">
+            <option value="">— bez kategorie —</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {{ 'selected' if product and product.category_id == cat.id }}>
+              {{ cat.title_cs }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Základní cena (Kč)</label>
+          <input type="number" name="base_price" step="0.01" min="0" required
+                 value="{{ product.base_price if product else '' }}">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;padding-top:1.5rem">
+          <label class="toggle">
+            <input type="checkbox" name="is_active" {{ 'checked' if not product or product.is_active }}>
+            Aktivní (zobrazit v katalogu)
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Popis (CS)</label>
+        <textarea name="description_cs">{{ product.description_cs if product else '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Popis (EN)</label>
+        <textarea name="description_en">{{ product.description_en if product else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  {# ── Tagy ── (vyplní se v další fázi) #}
+  {% if all_tags %}
+  <div class="admin-card">
+    <h2>Tagy</h2>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      {% for tag in all_tags %}
+      <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.35rem .75rem;border:1px solid var(--border);border-radius:99px;font-size:.875rem;transition:all .15s"
+             class="tag-check-label {{ 'tag-check-label--active' if product and tag in product.tags }}">
+        <input type="checkbox" name="tag_ids" value="{{ tag.id }}"
+               {{ 'checked' if product and tag in product.tags }}
+               style="position:absolute;opacity:0;pointer-events:none">
+        {{ tag.name_cs }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if product %}
+  {# ── Fotografie ── #}
+  <div class="admin-card">
+    <h2>Fotografie</h2>
+    <div class="img-grid">
+      {% for img in product.images %}
+      <div class="img-grid__item">
+        <img src="{{ img.image_url }}" alt="">
+        <div class="img-grid__item-actions">
+          <label class="btn btn--outline btn--sm img-replace-label" title="Nahradit obrázek">
+            ↺ Nahradit
+            <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none"
+                   onchange="replaceImage({{ img.id }}, this)">
+          </label>
+          <form method="post" action="/admin/products/{{ product.id }}/image/{{ img.id }}/delete" style="margin:0">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)" title="Smazat">✕</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="form-group" style="margin-top:1rem">
+      <label>Přidat fotografie (JPG / PNG / WebP, max 5 MB)</label>
+      <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp">
+    </div>
+  </div>
+
+  {# ── Varianty ── #}
+  <div class="admin-card">
+    <h2>Varianty</h2>
+    <table class="admin-table" style="margin-bottom:1rem">
+      <thead><tr><th>Název CS</th><th>Název EN</th><th>Příplatek</th><th>Sklad</th><th></th></tr></thead>
+      <tbody>
+        {% for v in product.variants %}
+        <tr>
+          <td>{{ v.name_cs }}</td>
+          <td>{{ v.name_en }}</td>
+          <td>{{ '+' if v.price_modifier > 0 }}{{ v.price_modifier | int }} Kč</td>
+          <td>{{ v.stock }}</td>
+          <td>
+            <form method="post" action="/admin/variants/{{ v.id }}/delete">
+              {{ csrf_input(csrf_token) }}
+              <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <details>
+      <summary class="btn btn--outline btn--sm" style="cursor:pointer;display:inline-flex">+ Přidat variantu</summary>
+      <div style="margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:var(--radius)">
+        <div class="form-row">
+          <div class="form-group"><label>Název CS</label><input type="text" name="v_name_cs"></div>
+          <div class="form-group"><label>Název EN</label><input type="text" name="v_name_en"></div>
+          <div class="form-group"><label>Příplatek Kč</label><input type="number" name="v_price_modifier" value="0" step="0.01"></div>
+          <div class="form-group"><label>Sklad</label><input type="number" name="v_stock" value="0"></div>
+        </div>
+      </div>
+    </details>
+  </div>
+  {% endif %}
+
+  <button type="submit" class="btn btn--primary">{{ 'Uložit změny' if product else 'Vytvořit produkt' }}</button>
+</form>
+
+{# Skrytá forma pro replace obrázku — dynamicky se naplní JS #}
+<form id="replace-image-form" method="post" enctype="multipart/form-data" style="display:none">
+  {{ csrf_input(csrf_token) }}
+  <input type="file" name="image" id="replace-image-file">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Auto-slug generátor ────────────────────────────────────────
+const titleInput = document.getElementById('title-cs');
+const slugInput  = document.getElementById('slug-input');
+let slugLocked   = slugInput && slugInput.value.length > 0;
+
+function slugify(str) {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+if (titleInput && slugInput) {
+  titleInput.addEventListener('input', () => {
+    if (!slugLocked) slugInput.value = slugify(titleInput.value);
+  });
+  slugInput.addEventListener('input', () => { slugLocked = true; });
+  // Dvojklik na slug pole reset zámku
+  slugInput.addEventListener('dblclick', () => {
+    slugLocked = false;
+    slugInput.value = slugify(titleInput.value);
+  });
+}
+
+// ── Tag checkboxy ─────────────────────────────────────────────
+document.querySelectorAll('.tag-check-label').forEach(label => {
+  const cb = label.querySelector('input[type=checkbox]');
+  if (cb && cb.checked) label.classList.add('tag-check-label--active');
+  label.addEventListener('click', () => {
+    setTimeout(() => {
+      label.classList.toggle('tag-check-label--active', cb.checked);
+    }, 0);
+  });
+});
+
+// ── Nahradit obrázek ──────────────────────────────────────────
+function replaceImage(imgId, fileInput) {
+  if (!fileInput.files.length) return;
+  const form = document.getElementById('replace-image-form');
+  form.action = `/admin/products/{{ product.id if product else 0 }}/image/${imgId}/replace`;
+  const dt = new DataTransfer();
+  dt.items.add(fileInput.files[0]);
+  document.getElementById('replace-image-file').files = dt.files;
+  form.submit();
+}
+</script>
+{% endblock %}

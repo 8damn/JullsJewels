@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — {% block title %}{% endblock %} | Jullsjewels</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container nav__inner">
+    <a href="/admin" class="nav__logo">Julls<span>jewels</span> <span style="font-size:.75rem;color:var(--text-muted);font-family:var(--ff-body)">admin</span></a>
+    <ul class="nav__links">
+      <li><a href="/" target="_blank">← Zobrazit web</a></li>
+      <li>
+        <form method="post" action="/auth/logout" style="display:inline">
+          {{ csrf_input(csrf_token) }}
+          <button class="btn btn--ghost" style="font-size:.875rem;letter-spacing:.04em;text-transform:uppercase">Odhlásit</button>
+        </form>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+{% if flash %}
+<div class="container" style="padding-top:1rem">
+  <div class="alert alert--{{ flash.type }}">{{ flash.message }}</div>
+</div>
+{% endif %}
+
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar__section">Přehled</div>
+    <a href="/admin" class="{{ 'active' if active == 'dashboard' }}">📊 Dashboard</a>
+
+    <div class="admin-sidebar__section">Katalog</div>
+    <a href="/admin/products" class="{{ 'active' if active == 'products' }}">💎 Produkty</a>
+    <a href="/admin/tags" class="{{ 'active' if active == 'tags' }}">🏷️ Tagy &amp; Sety</a>
+    <a href="/admin/categories" class="{{ 'active' if active == 'categories' }}">📁 Kategorie</a>
+
+    <div class="admin-sidebar__section">Obchod</div>
+    <a href="/admin/orders" class="{{ 'active' if active == 'orders' }}">📦 Objednávky</a>
+
+    <div class="admin-sidebar__section">Obsah</div>
+    <a href="/admin/blog" class="{{ 'active' if active == 'blog' }}">✍️ Blog</a>
+
+    <div class="admin-sidebar__section">Konfigurátor</div>
+    <a href="/admin/configurator" class="{{ 'active' if active == 'configurator' }}">⚙️ Typy a dimenze</a>
+  </aside>
+
+  <main class="admin-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

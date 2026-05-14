@@ -1,0 +1,82 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Upravit článek' if post else 'Nový článek' }}{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>{{ 'Upravit: ' + post.title_cs if post else 'Nový článek' }}</h1>
+  <a href="/admin/blog" class="btn btn--outline btn--sm">← Zpět</a>
+</div>
+
+<form method="post"
+      action="{{ '/admin/blog/' + post.id|string + '/edit' if post else '/admin/blog/new' }}"
+      class="admin-form">
+  {{ csrf_input(csrf_token) }}
+
+  <div class="admin-card">
+    <h2>Obsah</h2>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Název (CS)</label>
+          <input type="text" name="title_cs" required value="{{ post.title_cs if post else '' }}">
+        </div>
+        <div class="form-group">
+          <label>Název (EN)</label>
+          <input type="text" name="title_en" required value="{{ post.title_en if post else '' }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Slug</label>
+        <input type="text" name="slug" required value="{{ post.slug if post else '' }}"
+               placeholder="napr. jak-pecovat-o-stribrne-sperky">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Perex (CS)</label>
+          <textarea name="excerpt_cs">{{ post.excerpt_cs if post else '' }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Perex (EN)</label>
+          <textarea name="excerpt_en">{{ post.excerpt_en if post else '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Obsah článku (CS) — HTML povoleno</label>
+        <textarea name="content_cs" style="min-height:200px">{{ post.content_cs if post else '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Obsah článku (EN) — HTML povoleno</label>
+        <textarea name="content_en" style="min-height:200px">{{ post.content_en if post else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <h2>SEO a publikace</h2>
+    <div class="form-stack">
+      <div class="form-group">
+        <label>URL obrázku na pozadí</label>
+        <input type="text" name="cover_image_url" value="{{ post.cover_image_url if post else '' }}"
+               placeholder="/static/uploads/...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>SEO popis (CS, max 160 znaků)</label>
+          <input type="text" name="seo_description_cs" maxlength="160"
+                 value="{{ post.seo_description_cs if post else '' }}">
+        </div>
+        <div class="form-group">
+          <label>SEO popis (EN, max 160 znaků)</label>
+          <input type="text" name="seo_description_en" maxlength="160"
+                 value="{{ post.seo_description_en if post else '' }}">
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" name="is_published" {{ 'checked' if post and post.is_published }}>
+        Publikovat ihned
+      </label>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn--primary">{{ 'Uložit změny' if post else 'Vytvořit článek' }}</button>
+</form>
+{% endblock %}

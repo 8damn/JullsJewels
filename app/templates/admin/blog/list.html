@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block title %}Blog{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Blog</h1>
+  <a href="/admin/blog/new" class="btn btn--primary btn--sm">+ Nový článek</a>
+</div>
+
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead><tr><th>Název</th><th>Slug</th><th>Publikováno</th><th>Datum</th><th></th></tr></thead>
+    <tbody>
+      {% for post in posts %}
+      <tr>
+        <td><strong>{{ post.title_cs }}</strong></td>
+        <td><code>{{ post.slug }}</code></td>
+        <td>
+          <form method="post" action="/admin/blog/{{ post.id }}/toggle">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--outline btn--sm">{{ '✓ Ano' if post.is_published else '✗ Ne' }}</button>
+          </form>
+        </td>
+        <td>{{ post.created_at.strftime('%d.%m.%Y') }}</td>
+        <td style="display:flex;gap:.5rem">
+          <a href="/admin/blog/{{ post.id }}/edit" class="btn btn--outline btn--sm">Upravit</a>
+          <form method="post" action="/admin/blog/{{ post.id }}/delete"
+                onsubmit="return confirm('Smazat článek?')">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

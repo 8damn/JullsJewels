@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ t("cart.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section">
+  <div class="page-header">
+    <h1>{{ t("cart.title") }}</h1>
+  </div>
+
+  {% if items %}
+  <div class="cart-layout">
+    <div>
+      <table class="cart-table">
+        <thead>
+          <tr>
+            <th>{{ t("cart.item") }}</th>
+            <th>{{ t("cart.qty") }}</th>
+            <th>{{ t("cart.price") }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>
+              <strong>{{ item.name }}</strong>
+              {% if item.variant_name %}<br><span class="muted">{{ item.variant_name }}</span>{% endif %}
+            </td>
+            <td>{{ item.qty }}</td>
+            <td>{{ item.line_total | price }}</td>
+            <td>
+              <form method="post" action="/cart/remove">
+                {{ csrf_input(csrf_token) }}
+                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                <button type="submit" class="btn btn--ghost">✕</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cart-summary">
+      <div class="cart-summary__row cart-summary__total">
+        <span>{{ t("cart.total") }}</span>
+        <strong>{{ total | price }}</strong>
+      </div>
+      <a href="/checkout" class="btn btn--primary btn--full" style="margin-top:1.5rem">{{ t("cart.checkout") }}</a>
+      <a href="/catalog" class="btn btn--outline btn--full" style="margin-top:.75rem">{{ t("cart.continue") }}</a>
+    </div>
+  </div>
+
+  {% else %}
+  <div style="text-align:center;padding:4rem 0">
+    <p class="muted" style="font-size:1.1rem;margin-bottom:2rem">{{ t("cart.empty") }}</p>
+    <a href="/catalog" class="btn btn--primary">{{ t("cart.continue") }}</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

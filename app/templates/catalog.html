@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ t("catalog.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section--sm">
+  <div class="page-header" style="margin-bottom:2rem">
+    <h1>{{ t("catalog.title") }}</h1>
+    {% if selected_category or selected_tags %}
+    <a href="/catalog" class="btn btn--outline btn--sm">✕ Zrušit filtry</a>
+    {% endif %}
+  </div>
+
+  <div class="catalog-layout">
+
+    {# ── Sidebar filtrů ── #}
+    <aside class="filter-sidebar">
+      <form method="get" action="/catalog" id="filter-form">
+
+        <h3>{{ 'Kategorie' if lang == 'cs' else 'Category' }}</h3>
+        <label class="filter-check">
+          <input type="radio" name="category" value=""
+                 {{ 'checked' if not selected_category }}
+                 onchange="this.form.submit()">
+          {{ 'Vše' if lang == 'cs' else 'All' }}
+        </label>
+        {% for cat in categories %}
+        <label class="filter-check">
+          <input type="radio" name="category" value="{{ cat.slug }}"
+                 {{ 'checked' if selected_category == cat.slug }}
+                 onchange="this.form.submit()">
+          {{ cat.title_cs if lang == 'cs' else cat.title_en }}
+        </label>
+        {% endfor %}
+
+        {% if all_tags %}
+        <h3>{{ 'Tagy' if lang == 'cs' else 'Tags' }}</h3>
+        {% for tag in all_tags %}
+        <label class="filter-check">
+          <input type="checkbox" name="tags" value="{{ tag.slug }}"
+                 {{ 'checked' if tag.slug in selected_tags }}
+                 onchange="this.form.submit()">
+          {{ tag.name_cs if lang == 'cs' else tag.name_en }}
+        </label>
+        {% endfor %}
+        {% endif %}
+
+      </form>
+    </aside>
+
+    {# ── Grid produktů ── #}
+    <div>
+      {% if products %}
+      <p class="muted" style="margin-bottom:1.25rem;font-size:.875rem">
+        {{ products | length }} {{ 'produktů' if lang == 'cs' else 'products' }}
+      </p>
+      <div class="product-grid">
+        {% for product in products %}
+          {% include "partials/product_card.html" %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:4rem 2rem;color:var(--text-muted)">
+        <p style="font-size:1.1rem">{{ 'Žádné produkty neodpovídají filtru.' if lang == 'cs' else 'No products match the filter.' }}</p>
+        <a href="/catalog" class="btn btn--outline" style="margin-top:1.5rem">{{ 'Zrušit filtry' if lang == 'cs' else 'Clear filters' }}</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

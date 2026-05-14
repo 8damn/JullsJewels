@@ -1,0 +1,66 @@
+{% extends "admin/base.html" %}
+{% block title %}Objednávka #{{ order.id }}{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Objednávka #{{ order.id }}</h1>
+  <a href="/admin/orders" class="btn btn--outline btn--sm">← Zpět</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
+  <div>
+    <div class="admin-card">
+      <h2>Položky</h2>
+      <table class="admin-table">
+        <thead><tr><th>Produkt</th><th>Varianta</th><th>Množství</th><th>Cena</th></tr></thead>
+        <tbody>
+          {% for item in order.items %}
+          <tr>
+            <td>{{ item.product_name_snapshot }}</td>
+            <td>{{ item.variant_snapshot.name if item.variant_snapshot else '—' }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.price_snapshot | price }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="admin-card">
+      <h2>Doručovací adresa</h2>
+      <pre style="font-family:var(--ff-body);line-height:1.6;white-space:pre-wrap">{{ order.shipping_address }}</pre>
+      <p style="margin-top:.75rem"><strong>E-mail:</strong> {{ order.customer_email }}</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="admin-card">
+      <h2>Stav objednávky</h2>
+      <div class="info-row"><span>VS</span><strong>{{ order.var_symbol }}</strong></div>
+      <div class="info-row"><span>Celkem</span><strong>{{ order.total_price | price }}</strong></div>
+      <div class="info-row"><span>Datum</span><strong>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</strong></div>
+      <div class="divider"></div>
+
+      <form method="post" action="/admin/orders/{{ order.id }}/status" class="form-stack">
+        {{ csrf_input(csrf_token) }}
+        <div class="form-group">
+          <label>Stav platby</label>
+          <select name="payment_status">
+            {% for s in ['pending', 'paid', 'failed'] %}
+            <option value="{{ s }}" {{ 'selected' if order.payment_status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Stav vyřízení</label>
+          <select name="fulfillment_status">
+            {% for s in ['new', 'processing', 'shipped', 'completed'] %}
+            <option value="{{ s }}" {{ 'selected' if order.fulfillment_status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn--primary btn--full">Uložit</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

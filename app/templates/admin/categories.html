@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% block title %}Kategorie{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Kategorie</h1>
+</div>
+
+<div class="admin-card" style="max-width:560px;margin-bottom:1.5rem">
+  <h2>Přidat kategorii</h2>
+  <form method="post" action="/admin/categories/add" class="form-stack">
+    {{ csrf_input(csrf_token) }}
+    <div class="form-row">
+      <div class="form-group"><label>Název CS</label><input type="text" name="title_cs" required></div>
+      <div class="form-group"><label>Název EN</label><input type="text" name="title_en" required></div>
+    </div>
+    <div class="form-group">
+      <label>Slug</label>
+      <input type="text" name="slug" required placeholder="napr. nausnice">
+    </div>
+    <button type="submit" class="btn btn--primary btn--sm">Přidat</button>
+  </form>
+</div>
+
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead><tr><th>Název CS</th><th>Název EN</th><th>Slug</th><th>Produktů</th><th></th></tr></thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr>
+        <td>{{ cat.title_cs }}</td>
+        <td>{{ cat.title_en }}</td>
+        <td><code>{{ cat.slug }}</code></td>
+        <td>{{ cat.products | length }}</td>
+        <td>
+          <form method="post" action="/admin/categories/{{ cat.id }}/delete"
+                onsubmit="return confirm('Smazat kategorii? Produkty zůstanou bez kategorie.')">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

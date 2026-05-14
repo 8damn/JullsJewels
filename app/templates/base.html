@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Jullsjewels{% endblock %}</title>
+  <meta name="description" content="{% block meta_desc %}Ruční šperky na míru — Jullsjewels{% endblock %}">
+  <link rel="stylesheet" href="/static/css/main.css">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+{# ── Navigation ── #}
+<nav class="nav">
+  <div class="container nav__inner">
+    <a href="/" class="nav__logo">Julls<span>jewels</span></a>
+    <ul class="nav__links">
+      <li><a href="/catalog">{{ t("nav.catalog") }}</a></li>
+      <li><a href="/sets">{{ t("nav.sets") }}</a></li>
+      <li><a href="/configurator">{{ t("nav.configurator") }}</a></li>
+      <li><a href="/blog">{{ t("nav.blog") }}</a></li>
+      <li>
+        <a href="/cart">
+          {{ t("nav.cart") }}
+          {% if cart_count > 0 %}
+            <span class="nav__cart-badge">{{ cart_count }}</span>
+          {% endif %}
+        </a>
+      </li>
+      {% if current_user %}
+        <li><a href="/profile">{{ current_user.first_name or t("nav.profile") }}</a></li>
+        <li>
+          <form method="post" action="/auth/logout" style="display:inline">
+            {{ csrf_input(csrf_token) }}
+            <button type="submit" class="btn btn--ghost" style="font-size:.875rem;letter-spacing:.04em;text-transform:uppercase">{{ t("nav.logout") }}</button>
+          </form>
+        </li>
+      {% else %}
+        <li><a href="/auth/login">{{ t("nav.login") }}</a></li>
+      {% endif %}
+    </ul>
+    <form method="post" action="/set-lang/{{ 'cs' if lang == 'en' else 'en' }}" style="margin-left:1rem">
+      {{ csrf_input(csrf_token) }}
+      <button type="submit" class="nav__lang">{{ 'CS' if lang == 'en' else 'EN' }}</button>
+    </form>
+  </div>
+</nav>
+
+{# ── Flash messages ── #}
+{% if flash %}
+  <div class="container" style="padding-top:1rem">
+    <div class="alert alert--{{ flash.type }}">{{ flash.message }}</div>
+  </div>
+{% endif %}
+
+{# ── Main content ── #}
+<main class="flex-grow">
+  {% block content %}{% endblock %}
+</main>
+
+{# ── Footer ── #}
+<footer class="footer">
+  <div class="container">
+    <p>© {{ now.year }} Jullsjewels — {{ t("footer.rights") }}</p>
+  </div>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ t("orders.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section">
+  <div class="page-header">
+    <h1>{{ t("orders.title") }}</h1>
+  </div>
+
+  {% if orders %}
+  <table class="orders-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{{ t("orders.date") }}</th>
+        <th>{{ t("orders.total") }}</th>
+        <th>{{ t("orders.status") }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td>{{ order.id }}</td>
+        <td>{{ order.created_at.strftime('%d. %m. %Y') }}</td>
+        <td>{{ order.total_price | price }}</td>
+        <td>
+          <span class="badge badge--{{ order.payment_status }}">
+            {{ t("status." + order.payment_status) }}
+          </span>
+        </td>
+        <td>
+          <a href="/orders/{{ order.id }}/confirmation" class="btn btn--outline btn--sm">detail</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">{{ t("orders.empty") }}</p>
+  {% endif %}
+</div>
+{% endblock %}

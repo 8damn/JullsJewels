@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ t("confirmation.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section">
+  <div class="confirmation-box">
+    <h1>{{ t("confirmation.title") }}</h1>
+    <p>{{ t("confirmation.email_sent") }}</p>
+
+    <div class="qr">
+      <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR platba" width="200" height="200">
+    </div>
+
+    <p class="muted" style="margin-bottom:1.5rem">{{ t("confirmation.qr_info") }}</p>
+
+    <div style="text-align:left;margin-bottom:2rem">
+      <div class="info-row">
+        <span>{{ t("confirmation.order_id") }}</span>
+        <strong>#{{ order.id }}</strong>
+      </div>
+      <div class="info-row">
+        <span>{{ t("confirmation.var_symbol") }}</span>
+        <strong>{{ order.var_symbol }}</strong>
+      </div>
+      <div class="info-row">
+        <span>{{ t("confirmation.amount") }}</span>
+        <strong>{{ order.total_price | price }}</strong>
+      </div>
+    </div>
+
+    <a href="/" class="btn btn--outline">{{ t("nav.home") }}</a>
+  </div>
+</div>
+{% endblock %}

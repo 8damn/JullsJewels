@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title_cs if lang == 'cs' else product.title_en }} — Jullsjewels{% endblock %}
+{% block meta_desc %}{{ product.description_cs[:160] if lang == 'cs' else product.description_en[:160] }}{% endblock %}
+
+{% block content %}
+<div class="container section">
+  <a href="/catalog" class="muted" style="display:inline-block;margin-bottom:2rem">← {{ t("product.back") }}</a>
+
+  <div class="product-detail">
+    {# Gallery #}
+    <div class="product-detail__gallery">
+      {% if product.images %}
+        <img id="main-img" src="{{ product.images[0].image_url }}" alt="{{ product.title_cs if lang == 'cs' else product.title_en }}">
+        {% if product.images|length > 1 %}
+        <div class="product-detail__thumbs">
+          {% for img in product.images %}
+          <img src="{{ img.image_url }}" alt="" class="{{ 'active' if loop.first }}"
+               onclick="document.getElementById('main-img').src=this.src;document.querySelectorAll('.product-detail__thumbs img').forEach(i=>i.classList.remove('active'));this.classList.add('active')">
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <div style="aspect-ratio:1/1;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--text-muted)">
+          foto brzy
+        </div>
+      {% endif %}
+    </div>
+
+    {# Info #}
+    <div>
+      {% if product.category %}
+        <p class="muted" style="margin-bottom:.5rem;text-transform:uppercase;font-size:.8rem;letter-spacing:.06em">
+          {{ product.category.title_cs if lang == 'cs' else product.category.title_en }}
+        </p>
+      {% endif %}
+      <h1>{{ product.title_cs if lang == 'cs' else product.title_en }}</h1>
+      <p class="product-detail__price" id="display-price">{{ product.base_price | price }}</p>
+
+      {% if product.variants %}
+      <div style="margin-bottom:1.5rem">
+        <p style="font-size:.85rem;font-weight:500;margin-bottom:.75rem">{{ t("product.choose_variant") }}</p>
+        <div class="variants">
+          {% for v in product.variants %}
+          <label class="variant-label">
+            <input type="radio" name="variant_sel" value="{{ v.id }}"
+                   data-price="{{ (product.base_price + v.price_modifier) | float }}"
+                   {{ 'checked' if loop.first }}>
+            <span class="variant-chip">{{ v.name_cs if lang == 'cs' else v.name_en }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="post" action="/cart/add">
+        {{ csrf_input(csrf_token) }}
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        {% if product.variants %}<input type="hidden" name="variant_id" id="variant-id-input" value="{{ product.variants[0].id }}">{% endif %}
+        <button type="submit" class="btn btn--primary btn--full">{{ t("product.add_to_cart") }}</button>
+      </form>
+
+      {% if product.description_cs or product.description_en %}
+      <div class="divider"></div>
+      <h3>{{ t("product.description") }}</h3>
+      <p style="margin-top:.75rem;line-height:1.8">{{ product.description_cs if lang == 'cs' else product.description_en }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('input[name="variant_sel"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const price = parseFloat(radio.dataset.price);
+    document.getElementById('display-price').textContent =
+      price.toLocaleString('cs-CZ', {maximumFractionDigits:0}) + ' Kč';
+    document.getElementById('variant-id-input').value = radio.value;
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ t("profile.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section" style="max-width:640px">
+  <div class="page-header">
+    <h1>{{ t("profile.title") }}</h1>
+    <p>{{ current_user.email }}</p>
+  </div>
+
+  <form method="post" action="/profile/save" class="form-stack">
+    {{ csrf_input(csrf_token) }}
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ t("auth.first_name") }}</label>
+        <input type="text" name="first_name" value="{{ current_user.first_name or '' }}">
+      </div>
+      <div class="form-group">
+        <label>{{ t("auth.last_name") }}</label>
+        <input type="text" name="last_name" value="{{ current_user.last_name or '' }}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{ t("profile.address") }}</label>
+      <textarea name="shipping_address">{{ current_user.shipping_address or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn--primary">{{ t("profile.save") }}</button>
+  </form>
+
+  <div class="divider"></div>
+  <a href="/my-orders" class="btn btn--outline">{{ t("nav.orders") }}</a>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sety' if lang == 'cs' else 'Sets' }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section--sm">
+  <div class="page-header" style="margin-bottom:2rem">
+    <h1>{{ 'Sety' if lang == 'cs' else 'Sets' }}</h1>
+    <p class="muted">{{ 'Tematické kolekce ručně vyráběných šperků.' if lang == 'cs' else 'Thematic collections of handcrafted jewelry.' }}</p>
+  </div>
+
+  {% if sets %}
+  <div class="sets-grid">
+    {% for s in sets %}
+    <a href="/sets/{{ s.slug }}" class="set-card">
+      <div class="set-card__cover">
+        {% if s.cover_image_url %}
+          <img src="{{ s.cover_image_url }}" alt="{{ s.name_cs if lang == 'cs' else s.name_en }}">
+        {% else %}
+          ✦
+        {% endif %}
+      </div>
+      <div class="set-card__body">
+        <div class="set-card__name">{{ s.name_cs if lang == 'cs' else s.name_en }}</div>
+        <div class="set-card__count">
+          {{ s.products | length }} {{ 'šperků' if lang == 'cs' else 'pieces' }}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:4rem 2rem;color:var(--text-muted)">
+    <p style="font-size:1.1rem">{{ 'Zatím žádné sety.' if lang == 'cs' else 'No sets yet.' }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

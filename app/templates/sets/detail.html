@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ set.name_cs if lang == 'cs' else set.name_en }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section--sm">
+  <div class="page-header" style="margin-bottom:2rem">
+    <p style="margin-bottom:.5rem">
+      <a href="/sets" style="color:var(--text-muted);font-size:.875rem">← {{ 'Zpět na sety' if lang == 'cs' else 'Back to sets' }}</a>
+    </p>
+    <h1>{{ set.name_cs if lang == 'cs' else set.name_en }}</h1>
+    {% if set.cover_image_url %}
+    <img src="{{ set.cover_image_url }}" alt="{{ set.name_cs if lang == 'cs' else set.name_en }}"
+         style="width:100%;max-width:600px;border-radius:var(--radius);margin-top:1rem;object-fit:cover;aspect-ratio:16/6;display:block">
+    {% endif %}
+  </div>
+
+  {% if products %}
+  <p class="muted" style="margin-bottom:1.25rem;font-size:.875rem">
+    {{ products | length }} {{ 'šperků' if lang == 'cs' else 'pieces' }}
+  </p>
+  <div class="product-grid">
+    {% for product in products %}
+      {% include "partials/product_card.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:4rem 2rem;color:var(--text-muted)">
+    <p style="font-size:1.1rem">{{ 'Tento set zatím neobsahuje žádné produkty.' if lang == 'cs' else 'This set has no products yet.' }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ t("auth.register_title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-box">
+    <h1>{{ t("auth.register_title") }}</h1>
+    <form method="post" action="/auth/register" class="form-stack">
+      {{ csrf_input(csrf_token) }}
+      <div class="form-row">
+        <div class="form-group">
+          <label>{{ t("auth.first_name") }}</label>
+          <input type="text" name="first_name">
+        </div>
+        <div class="form-group">
+          <label>{{ t("auth.last_name") }}</label>
+          <input type="text" name="last_name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>{{ t("auth.email") }}</label>
+        <input type="email" name="email" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>{{ t("auth.password") }}</label>
+        <input type="password" name="password" required minlength="8">
+      </div>
+      <button type="submit" class="btn btn--primary btn--full">{{ t("auth.register_btn") }}</button>
+    </form>
+    <p class="muted" style="margin-top:1.25rem;text-align:center">
+      {{ t("auth.have_account") }} <a href="/auth/login" style="color:var(--accent)">{{ t("auth.login_btn") }}</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

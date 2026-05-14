@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ category.title_cs if lang == 'cs' else category.title_en }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <a href="/catalog" class="muted" style="display:inline-block;margin-bottom:.5rem">← {{ t("product.back") }}</a>
+    <h1>{{ category.title_cs if lang == 'cs' else category.title_en }}</h1>
+  </div>
+
+  {% if products %}
+    <div class="product-grid">
+      {% for product in products %}
+        {% include "partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">{{ t("catalog.empty") }}</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+{% block title %}Tagy{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Tagy</h1>
+</div>
+
+<div class="admin-card" style="max-width:640px;margin-bottom:1.5rem">
+  <h2>Přidat tag</h2>
+  <form method="post" action="/admin/tags/add" class="form-stack" enctype="multipart/form-data">
+    {{ csrf_input(csrf_token) }}
+    <div class="form-row">
+      <div class="form-group"><label>Název CS</label><input type="text" name="name_cs" required id="tag-name-cs"></div>
+      <div class="form-group"><label>Název EN</label><input type="text" name="name_en" required></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Slug <span class="muted" style="font-weight:400;font-size:.8rem">— generuje se automaticky</span></label>
+        <input type="text" name="slug" required id="tag-slug" placeholder="summer">
+      </div>
+      <div class="form-group" style="justify-content:flex-end;padding-top:1.5rem">
+        <label class="toggle">
+          <input type="checkbox" name="is_collection"> Zobrazit v Setech
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Cover obrázek pro Set (volitelné, JPG/PNG/WebP)</label>
+      <input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp">
+    </div>
+    <button type="submit" class="btn btn--primary btn--sm">Přidat tag</button>
+  </form>
+</div>
+
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead>
+      <tr><th>Název CS</th><th>Název EN</th><th>Slug</th><th>Produktů</th><th>Set</th><th>Cover</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for tag in tags %}
+      <tr>
+        <td><strong>{{ tag.name_cs }}</strong></td>
+        <td>{{ tag.name_en }}</td>
+        <td><code>{{ tag.slug }}</code></td>
+        <td>{{ tag.products | length }}</td>
+        <td>
+          <form method="post" action="/admin/tags/{{ tag.id }}/toggle">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--outline btn--sm">{{ '✓ Ano' if tag.is_collection else '✗ Ne' }}</button>
+          </form>
+        </td>
+        <td>
+          {% if tag.cover_image_url %}
+            <img src="{{ tag.cover_image_url }}" style="width:48px;height:36px;object-fit:cover;border-radius:2px;border:1px solid var(--border)">
+            <form method="post" action="/admin/tags/{{ tag.id }}/cover/delete" style="display:inline;margin-left:.25rem">
+              {{ csrf_input(csrf_token) }}
+              <button class="btn btn--ghost btn--sm" style="color:var(--danger);padding:.2rem .4rem">✕</button>
+            </form>
+          {% else %}
+            <form method="post" action="/admin/tags/{{ tag.id }}/cover" enctype="multipart/form-data" style="display:inline">
+              {{ csrf_input(csrf_token) }}
+              <label class="btn btn--outline btn--sm" style="cursor:pointer;display:inline-flex">
+                ↑ Nahrát
+                <input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp"
+                       style="display:none" onchange="this.form.submit()">
+              </label>
+            </form>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/admin/tags/{{ tag.id }}/delete"
+                onsubmit="return confirm('Smazat tag? Odeberete ho ze všech produktů.')">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const nameCs = document.getElementById('tag-name-cs');
+const tagSlug = document.getElementById('tag-slug');
+let locked = false;
+function slugify(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+if (nameCs && tagSlug) {
+  nameCs.addEventListener('input', () => { if (!locked) tagSlug.value = slugify(nameCs.value); });
+  tagSlug.addEventListener('input', () => { locked = true; });
+}
+</script>
+{% endblock %}

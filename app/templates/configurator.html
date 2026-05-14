@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ t("configurator.title") }} — Jullsjewels{% endblock %}
+
+{% block content %}
+<div class="container section">
+  <div class="page-header">
+    <h1>{{ t("configurator.title") }}</h1>
+  </div>
+
+  {# Výběr typu šperku #}
+  <div style="margin-bottom:2.5rem">
+    <p style="font-size:.8rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.75rem;color:var(--text-muted)">
+      {{ t("configurator.choose_type") }}
+    </p>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      {% for ct in configurator_types %}
+      <button class="btn btn--outline type-btn {{ 'btn--primary' if loop.first }}"
+              data-type-id="{{ ct.id }}"
+              onclick="selectType({{ ct.id }}, this)">
+        {{ ct.name_cs if lang == 'cs' else ct.name_en }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% for ct in configurator_types %}
+  <div class="configurator-layout type-panel" id="type-{{ ct.id }}" style="{{ 'display:grid' if loop.first else 'display:none' }}">
+
+    {# Panel dimenzí #}
+    <div>
+      {% for dim in ct.dimensions %}
+      <div class="dim-group">
+        <p class="dim-group__label">
+          {{ dim.name_cs if lang == 'cs' else dim.name_en }}
+          {% if not dim.is_required %}<span class="muted">({{ 'volitelné' if lang == 'cs' else 'optional' }})</span>{% endif %}
+        </p>
+        <div class="dim-options">
+          {% for mod in dim.modifiers %}
+          <label class="dim-option">
+            <input type="radio"
+                   name="dim_{{ ct.id }}_{{ dim.id }}"
+                   value="{{ mod.id }}"
+                   data-price="{{ mod.price_modifier }}"
+                   data-layer="{{ mod.image_asset_path or '' }}"
+                   data-dim-slug="{{ dim.slug }}"
+                   {{ 'checked' if mod.is_default }}
+                   onchange="updateConfigurator({{ ct.id }})">
+            <span class="dim-option-chip">
+              {{ mod.name_cs if lang == 'cs' else mod.name_en }}
+              {% if mod.price_modifier > 0 %}
+                <span class="muted">+{{ mod.price_modifier | int }} Kč</span>
+              {% endif %}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="form-group" style="margin-top:.5rem">
+        <label>{{ t("configurator.note_label") }}</label>
+        <textarea name="customer_note" placeholder="{{ t('configurator.note_placeholder') }}"></textarea>
+      </div>
+    </div>
+
+    {# Preview + cena + přidat do košíku #}
+    <div class="configurator-preview">
+      <div class="configurator-preview__canvas" id="canvas-{{ ct.id }}">
+        {% for dim in ct.dimensions %}
+        <img src="" alt="" id="layer-{{ ct.id }}-{{ dim.slug }}" style="display:none">
+        {% endfor %}
+      </div>
+      <p class="configurator-price" id="price-{{ ct.id }}">{{ ct.base_price | price }}</p>
+
+      <form method="post" action="/configurator/save" id="config-form-{{ ct.id }}">
+        {{ csrf_input(csrf_token) }}
+        <input type="hidden" name="configurator_type_id" value="{{ ct.id }}">
+        <input type="hidden" name="configuration_json" id="config-json-{{ ct.id }}" value="{}">
+        <input type="hidden" name="final_price" id="config-price-{{ ct.id }}" value="{{ ct.base_price }}">
+        <textarea name="customer_note" style="display:none" id="config-note-{{ ct.id }}"></textarea>
+        <button type="submit" class="btn btn--accent btn--full">{{ t("configurator.add_to_cart") }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const basePrices = { {% for ct in configurator_types %}{{ ct.id }}: {{ ct.base_price | float }}{% if not loop.last %}, {% endif %}{% endfor %} };
+
+function selectType(typeId, btn) {
+  document.querySelectorAll('.type-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.type-btn').forEach(b => {
+    b.classList.remove('btn--primary');
+    b.classList.add('btn--outline');
+  });
+  document.getElementById('type-' + typeId).style.display = 'grid';
+  btn.classList.add('btn--primary');
+  btn.classList.remove('btn--outline');
+  updateConfigurator(typeId);
+}
+
+function updateConfigurator(typeId) {
+  let total = basePrices[typeId] || 0;
+  const config = {};
+
+  // Nejdřív skryjeme všechny vrstvy pro tento typ
+  document.querySelectorAll(`#canvas-${typeId} img`).forEach(img => {
+    img.style.display = 'none';
+  });
+
+  document.querySelectorAll(`#type-${typeId} input[type=radio]:checked`).forEach(radio => {
+    total += parseFloat(radio.dataset.price) || 0;
+
+    const nameParts = radio.name.split('_');
+    const dimId = nameParts[nameParts.length - 1];
+    config[dimId] = parseInt(radio.value);
+
+    // Každá dimenze má vlastní vrstvu pojmenovanou podle slug
+    const dimSlug = radio.dataset.dimSlug;
+    const layerSrc = radio.dataset.layer;
+    const layerImg = document.getElementById(`layer-${typeId}-${dimSlug}`);
+
+    if (layerImg && layerSrc) {
+      layerImg.src = layerSrc;
+      layerImg.style.display = 'block';
+    }
+  });
+
+  document.getElementById('price-' + typeId).textContent =
+    total.toLocaleString('cs-CZ', {maximumFractionDigits: 0}) + ' Kč';
+
+  document.getElementById('config-json-' + typeId).value = JSON.stringify(config);
+  document.getElementById('config-price-' + typeId).value = total.toFixed(2);
+
+  const noteTA = document.querySelector(`#type-${typeId} textarea[name="customer_note"]`);
+  const hiddenNote = document.getElementById('config-note-' + typeId);
+  if (noteTA && hiddenNote) noteTA.oninput = () => hiddenNote.value = noteTA.value;
+}
+
+// Init
+document.querySelectorAll('.type-panel').forEach(panel => {
+  const id = parseInt(panel.id.replace('type-', ''));
+  updateConfigurator(id);
+});
+</script>
+{% endblock %}

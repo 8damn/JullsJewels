@@ -1,0 +1,32 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+jinja2==3.1.4
+python-multipart==0.0.12
+
+# Database
+sqlalchemy>=2.0.37
+alembic==1.14.0
+
+# Auth
+bcrypt>=4.0.0
+python-jose[cryptography]==3.3.0
+
+# Security
+itsdangerous==2.2.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# Config
+python-dotenv==1.0.1
+pydantic-settings==2.6.1
+
+# Images (konfigurátor snapshot)
+pillow>=11.1.0
+
+# QR kód (SPAYD platby)
+qrcode[pil]==8.0
+
+# Email
+aiosmtplib==3.0.2
