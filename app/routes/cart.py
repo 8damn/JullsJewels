@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,15 @@ from app.database import get_db
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
+_QTY_MIN = 1
+_QTY_MAX = 99
+
+
+def _validate_qty(qty: int) -> int:
+    if qty < _QTY_MIN or qty > _QTY_MAX:
+        raise HTTPException(400, f"Množství musí být {_QTY_MIN}–{_QTY_MAX}")
+    return qty
+
 
 @router.post("/add", dependencies=[Depends(csrf_protect)])
 async def add_to_cart(
@@ -18,6 +27,7 @@ async def add_to_cart(
     qty: int = Form(default=1),
     variant_id: Optional[int] = Form(default=None),
 ):
+    _validate_qty(qty)
     cart_service.add_product(request, product_id, qty, variant_id)
     return RedirectResponse(url="/cart", status_code=303)
 

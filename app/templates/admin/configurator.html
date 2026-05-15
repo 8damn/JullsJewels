@@ -25,10 +25,22 @@
 {# ── Typy a jejich dimenze ── #}
 {% for ct in configurator_types %}
 <div class="admin-card" style="margin-bottom:1.5rem">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-    <h2 style="margin:0">{{ ct.name_cs }} <span class="muted" style="font-size:.875rem">/ {{ ct.name_en }}</span></h2>
-    <div style="display:flex;gap:.5rem;align-items:center">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+    <div>
+      <h2 style="margin:0 0 .25rem">{{ ct.name_cs }} <span class="muted" style="font-size:.875rem">/ {{ ct.name_en }}</span></h2>
       <span class="muted" style="font-size:.8rem">Základ: {{ ct.base_price | price }}</span>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      {# Vizualizace: přepínač layout_mode #}
+      <form method="post" action="/admin/configurator/types/{{ ct.id }}/set-layout" style="display:flex;gap:.25rem">
+        {{ csrf_input(csrf_token) }}
+        <button name="layout_mode" value="layered"
+                class="btn btn--sm {{ 'btn--primary' if ct.layout_mode == 'layered' else 'btn--outline' }}"
+                title="Vrstvené PNG preview">🖼 Vrstvené</button>
+        <button name="layout_mode" value="bead_chain"
+                class="btn btn--sm {{ 'btn--primary' if ct.layout_mode == 'bead_chain' else 'btn--outline' }}"
+                title="SVG korálkový řetěz">🔴 Korálky</button>
+      </form>
       <form method="post" action="/admin/configurator/types/{{ ct.id }}/toggle">
         {{ csrf_input(csrf_token) }}
         <button class="btn btn--outline btn--sm">{{ '✓ Aktivní' if ct.is_active else '✗ Neaktivní' }}</button>
@@ -109,6 +121,20 @@
                 <input type="number" name="price_modifier" value="{{ mod.price_modifier | int }}" step="0.01">
               </div>
             </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Barva korálu <span class="muted" style="font-weight:400;font-size:.8rem">— pro SVG preview</span></label>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <input type="color" name="color_hex" value="{{ mod.color_hex or '#cccccc' }}"
+                         style="width:48px;height:36px;padding:2px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius)">
+                  <span class="muted" style="font-size:.8rem">{{ mod.color_hex or '—' }}</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Počet korálků <span class="muted" style="font-weight:400;font-size:.8rem">— jen pro délkové dimenze</span></label>
+                <input type="number" name="bead_count" value="{{ mod.bead_count or '' }}" min="1" max="100" placeholder="např. 20">
+              </div>
+            </div>
             <div style="display:flex;align-items:flex-end;gap:1.5rem;flex-wrap:wrap">
               <label class="toggle" style="margin-bottom:0">
                 <input type="checkbox" name="is_default" {{ 'checked' if mod.is_default }}> Výchozí volba
@@ -146,6 +172,17 @@
           <div class="form-group"><label>Název CS</label><input type="text" name="name_cs" required></div>
           <div class="form-group"><label>Název EN</label><input type="text" name="name_en" required></div>
           <div class="form-group"><label>Příplatek Kč</label><input type="number" name="price_modifier" value="0" step="0.01"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Barva korálu <span class="muted" style="font-weight:400;font-size:.8rem">— pro SVG preview</span></label>
+            <input type="color" name="color_hex" value="#cccccc"
+                   style="width:48px;height:36px;padding:2px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius)">
+          </div>
+          <div class="form-group">
+            <label>Počet korálků <span class="muted" style="font-weight:400;font-size:.8rem">— jen pro délkové dimenze</span></label>
+            <input type="number" name="bead_count" min="1" max="100" placeholder="např. 20">
+          </div>
         </div>
         <label class="toggle" style="margin-bottom:.75rem">
           <input type="checkbox" name="is_default"> Výchozí volba

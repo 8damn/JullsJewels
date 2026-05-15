@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V2 Slotbuilder — admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f5f3ee;--surface:#fff;--ink:#1f2937;--muted:#6b7280;--accent:#4f46e5;--border:#e5e7eb;--radius:10px;
+        --role-main:#fde68a;--role-accent:#a7f3d0;--role-sep:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:1.25rem;max-width:1500px;margin:0 auto}
+  @media (max-width:1000px){.layout{grid-template-columns:1fr}}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .panel h2{margin:0 0 1rem;font-size:1.05rem;font-weight:600}
+  .panel h3{font-size:.78rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin:1.25rem 0 .6rem;font-weight:600}
+
+  /* Slider */
+  .slider-row{display:flex;align-items:center;gap:1rem;background:var(--bg);padding:.85rem 1rem;border-radius:8px}
+  .slider-row label{font-size:.9rem;flex-shrink:0}
+  .slider-row input[type=range]{flex:1}
+  .slider-row .val{font-weight:600;font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+
+  /* Template slots — kompaktní zobrazení s dropdown */
+  .tpl-slots{display:flex;flex-wrap:wrap;gap:4px;padding:.75rem;background:var(--bg);border-radius:8px;margin-top:.5rem}
+  .tpl-slot{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:transform .1s}
+  .tpl-slot:hover{transform:scale(1.12)}
+  .tpl-slot.role-main   {background:var(--role-main);color:#854d0e;border-color:#fbbf24}
+  .tpl-slot.role-accent {background:var(--role-accent);color:#065f46;border-color:#34d399}
+  .tpl-slot.role-sep    {background:var(--role-sep);color:#374151;border-color:#9ca3af;width:22px;height:22px;font-size:.65rem}
+
+  .tpl-help{font-size:.78rem;color:var(--muted);margin-top:.5rem}
+  .tpl-help kbd{background:var(--bg);padding:1px 6px;border-radius:3px;border:1px solid var(--border);font-family:inherit;font-size:.75rem}
+
+  /* Allowed beads — checkbox grid */
+  .allowed{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem}
+  .allowed label{display:flex;align-items:center;gap:.4rem;padding:.4rem;background:var(--bg);border-radius:6px;cursor:pointer;font-size:.82rem;border:1px solid transparent}
+  .allowed label:hover{border-color:var(--border)}
+  .allowed label.disabled{opacity:0.4}
+  .allowed img{width:28px;height:28px;border-radius:50%;flex-shrink:0}
+  .allowed input{cursor:pointer}
+
+  /* Preview */
+  .preview-bracelet{background:linear-gradient(180deg,var(--bg),var(--surface));border-radius:var(--radius);padding:1.5rem;min-height:240px;position:relative}
+  .strand-canvas{width:100%;height:200px;position:relative}
+  .slot-preview{position:absolute;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .slot-preview img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+  .slot-preview.empty{background:rgba(0,0,0,0.05);border:1px dashed #c0b7a3}
+  .slot-preview[data-role="main"]   {width:42px;height:42px}
+  .slot-preview[data-role="accent"] {width:52px;height:52px;z-index:2}
+  .slot-preview[data-role="sep"]    {width:16px;height:16px}
+  .slot-preview[data-role="sep"].spacer{width:24px;height:14px;border-radius:6px}
+  .thread-line{position:absolute;top:50%;left:0;right:0;border-bottom:1px dashed #c0b7a3}
+
+  /* Defaults picker */
+  .defs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:.5rem}
+  .defs-grid > div h4{margin:0 0 .35rem;font-size:.8rem;font-weight:600}
+  .defs-options{display:flex;flex-wrap:wrap;gap:.3rem}
+  .defs-options img{width:32px;height:32px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+  .defs-options img:hover{transform:scale(1.1)}
+  .defs-options img.active{border-color:var(--accent)}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-top:.75rem}
+  .stat{background:var(--bg);padding:.6rem;border-radius:6px;text-align:center}
+  .stat .v{font-size:1.1rem;font-weight:700;color:var(--ink)}
+  .stat .l{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+  /* Quick-pattern presets */
+  .presets{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+  .presets button{padding:.4rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.8rem}
+  .presets button:hover{background:var(--surface)}
+
+  .actions{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
+  .actions button{padding:.55rem 1rem;border-radius:6px;cursor:pointer;font-size:.85rem;border:1px solid var(--border);background:var(--surface)}
+  .actions .primary{background:var(--ink);color:white;border-color:var(--ink)}
+  .actions a{text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V2 — Slotbuilder <span style="color:var(--muted);font-weight:400">/ admin</span></h1>
+  <div>
+    <a href="/experiment/v2" target="_blank">→ otevřít zákaznický pohled</a>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── LEVÝ: editor šablony ── #}
+  <div class="panel">
+    <h2>Šablona náramku</h2>
+
+    <div class="slider-row">
+      <label>Počet slotů</label>
+      <input type="range" min="11" max="29" value="17" id="lenSlider" oninput="setLength(this.value)">
+      <span class="val" id="lenVal">17</span>
+    </div>
+
+    <h3>Role jednotlivých pozic</h3>
+    <div class="tpl-slots" id="tpl-slots"></div>
+    <p class="tpl-help">
+      Klikni pro rotaci role: <kbd>main</kbd> → <kbd>akcent</kbd> → <kbd>separator</kbd>.
+      Šablona se vždy aplikuje symetricky.
+    </p>
+
+    <h3>Rychlé šablony</h3>
+    <div class="presets">
+      <button onclick="loadPreset('default')">Výchozí (3 akcenty)</button>
+      <button onclick="loadPreset('dense-sep')">Hustá s rozdělovači</button>
+      <button onclick="loadPreset('no-sep')">Bez rozdělovačů</button>
+      <button onclick="loadPreset('many-accents')">Více akcentů</button>
+    </div>
+
+    <h3>Povolené korálky v paletě</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin:0 0 .5rem">
+      Vyber které korálky bude moci zákazník použít. Odznačené se v paletě nezobrazí.
+    </p>
+    <div class="allowed" id="allowed"></div>
+
+    <h3>Default fill (předvyplnění)</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin:0 0 .5rem">
+      Když zákazník otevře konfigurátor, sloty se předvyplní těmito korálky.
+    </p>
+    <div class="defs-grid" id="defs-grid"></div>
+
+    <div class="actions">
+      <button onclick="resetAll()">↶ resetovat</button>
+      <button class="primary" onclick="exportJSON()">📋 export JSON</button>
+      <a href="/experiment/v2" target="_blank"><button>👁️ Otevřít zákazníka</button></a>
+    </div>
+  </div>
+
+  {# ── PRAVÝ: live preview ── #}
+  <div class="panel">
+    <h2>Náhled šablony</h2>
+    <p style="margin:0 0 1rem;font-size:.85rem;color:var(--muted)">
+      Předvyplněno default korálky. Zákazník si je může změnit drag-dropem z palety.
+    </p>
+
+    <div class="preview-bracelet">
+      <div class="strand-canvas" id="canvas">
+        <div class="thread-line"></div>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <h3>Vlastnosti šablony</h3>
+    <div style="background:var(--bg);padding:.75rem;border-radius:6px;font-size:.85rem">
+      <div>• Počet slotů: <b id="info-len">—</b></div>
+      <div>• Povolené 6mm: <b id="info-allowed-6">—</b> / {{ beads_6mm|length }}</div>
+      <div>• Povolené 8mm: <b id="info-allowed-8">—</b> / {{ beads_8mm|length }}</div>
+      <div>• Povolené rozdělovače: <b id="info-allowed-sep">—</b> / {{ separators|length }}</div>
+    </div>
+
+    <textarea id="json-out" style="width:100%;background:#1e1e1e;color:#a8e6a8;padding:.75rem;border-radius:6px;font-family:monospace;font-size:.75rem;border:none;min-height:120px;margin-top:.75rem;display:none"></textarea>
+  </div>
+
+</div>
+
+<script>
+const BEADS_6MM = {{ beads_6mm|tojson }};
+const BEADS_8MM = {{ beads_8mm|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+
+const ALL = { main: BEADS_6MM, accent: BEADS_8MM, sep: SEPARATORS };
+
+// Stav
+let template = ['main','sep','main','sep','main','sep','accent','sep','accent','sep','accent','sep','main','sep','main','sep','main'];
+let allowed = {
+  main:   BEADS_6MM.map(b => b.slug),
+  accent: BEADS_8MM.map(b => b.slug),
+  sep:    SEPARATORS.map(b => b.slug),
+};
+let defaults = {
+  main:   BEADS_6MM[0],
+  accent: BEADS_8MM[0],
+  sep:    SEPARATORS[0],
+};
+
+const PRESETS = {
+  'default':       ['main','sep','main','sep','main','sep','accent','sep','accent','sep','accent','sep','main','sep','main','sep','main'],
+  'dense-sep':     ['main','sep','main','sep','accent','sep','main','sep','accent','sep','main','sep','accent','sep','main','sep','main'],
+  'no-sep':        ['main','main','main','accent','main','accent','accent','main','accent','main','accent','accent','main','accent','main','main','main'],
+  'many-accents':  ['accent','sep','accent','sep','main','sep','accent','sep','main','sep','accent','sep','main','sep','accent','sep','accent'],
+};
+
+function setLength(n) {
+  n = parseInt(n);
+  document.getElementById('lenVal').textContent = n;
+  while (template.length < n) {
+    // Symetricky přidávej na obou koncích
+    template.unshift('main');
+    if (template.length < n) template.push('main');
+  }
+  while (template.length > n) {
+    template.shift();
+    if (template.length > n) template.pop();
+  }
+  renderAll();
+}
+
+function nextRole(r) { return r === 'main' ? 'accent' : r === 'accent' ? 'sep' : 'main'; }
+
+function cycleSlot(idx) {
+  template[idx] = nextRole(template[idx]);
+  // Symetrie automatická
+  const mirror = template.length - 1 - idx;
+  if (mirror !== idx) template[mirror] = template[idx];
+  renderAll();
+}
+
+function loadPreset(name) {
+  template = [...PRESETS[name]];
+  document.getElementById('lenSlider').value = template.length;
+  document.getElementById('lenVal').textContent = template.length;
+  renderAll();
+}
+
+function resetAll() {
+  if (!confirm('Resetovat šablonu i povolené korálky?')) return;
+  template = [...PRESETS['default']];
+  document.getElementById('lenSlider').value = 17;
+  document.getElementById('lenVal').textContent = 17;
+  allowed.main = BEADS_6MM.map(b => b.slug);
+  allowed.accent = BEADS_8MM.map(b => b.slug);
+  allowed.sep = SEPARATORS.map(b => b.slug);
+  defaults.main = BEADS_6MM[0];
+  defaults.accent = BEADS_8MM[0];
+  defaults.sep = SEPARATORS[0];
+  renderAll();
+}
+
+// ── Render šablona slotů ────────────────────────────────────────
+function renderTplSlots() {
+  const c = document.getElementById('tpl-slots');
+  c.innerHTML = '';
+  template.forEach((role, i) => {
+    const s = document.createElement('div');
+    s.className = 'tpl-slot role-' + role;
+    s.textContent = role === 'main' ? 'M' : role === 'accent' ? 'A' : '·';
+    s.title = `pozice ${i+1}: ${role}`;
+    s.onclick = () => cycleSlot(i);
+    c.appendChild(s);
+  });
+}
+
+// ── Render povolené korálky ─────────────────────────────────────
+function renderAllowed() {
+  const c = document.getElementById('allowed');
+  c.innerHTML = '';
+  ['main','accent','sep'].forEach(cat => {
+    ALL[cat].forEach(b => {
+      const lbl = document.createElement('label');
+      const checked = allowed[cat].includes(b.slug);
+      lbl.className = checked ? '' : 'disabled';
+      lbl.innerHTML = `
+        <input type="checkbox" ${checked ? 'checked' : ''}>
+        <img src="${b.image}" alt="${b.name}">
+        <span>${b.name}</span>`;
+      lbl.querySelector('input').onchange = (e) => {
+        if (e.target.checked) {
+          allowed[cat] = [...new Set([...allowed[cat], b.slug])];
+        } else {
+          // Nesmí vyloučit default
+          if (defaults[cat].slug === b.slug) {
+            e.target.checked = true;
+            alert('Tento korálek je nastaven jako default — nelze ho vyloučit.');
+            return;
+          }
+          allowed[cat] = allowed[cat].filter(s => s !== b.slug);
+        }
+        renderAll();
+      };
+      c.appendChild(lbl);
+    });
+  });
+}
+
+// ── Render default picker ───────────────────────────────────────
+function renderDefaults() {
+  const c = document.getElementById('defs-grid');
+  c.innerHTML = '';
+  ['main','accent','sep'].forEach(cat => {
+    const wrap = document.createElement('div');
+    const title = {main:'Hlavní 6 mm', accent:'Akcent 8 mm', sep:'Separator'}[cat];
+    wrap.innerHTML = `<h4>${title}</h4>`;
+    const opts = document.createElement('div');
+    opts.className = 'defs-options';
+    ALL[cat].filter(b => allowed[cat].includes(b.slug)).forEach(b => {
+      const img = document.createElement('img');
+      img.src = b.image;
+      img.alt = b.name;
+      img.title = b.name;
+      if (b.slug === defaults[cat].slug) img.classList.add('active');
+      img.onclick = () => { defaults[cat] = b; renderAll(); };
+      opts.appendChild(img);
+    });
+    wrap.appendChild(opts);
+    c.appendChild(wrap);
+  });
+}
+
+// ── Render náramek preview ──────────────────────────────────────
+function renderPreview() {
+  const canvas = document.getElementById('canvas');
+  canvas.querySelectorAll('.slot-preview').forEach(s => s.remove());
+  const cw = canvas.clientWidth || 600;
+  const n = template.length;
+  if (n === 0) return;
+
+  const padding = 30;
+  const usableW = cw - 2 * padding;
+  const stepX = usableW / Math.max(n - 1, 1);
+  const arcDepth = 14;
+
+  template.forEach((role, i) => {
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    const yOff = -arcDepth * (1 - 4 * Math.pow(t - 0.5, 2));
+    const x = padding + i * stepX;
+    const y = 100 + yOff;
+    const bead = defaults[role];
+    const s = document.createElement('div');
+    s.className = 'slot-preview';
+    s.dataset.role = role;
+    if (role === 'sep' && bead.type === 'spacer') s.classList.add('spacer');
+    const w = role === 'main' ? 42 : role === 'accent' ? 52 : (role === 'sep' && bead.type === 'spacer' ? 24 : 16);
+    const h = role === 'main' ? 42 : role === 'accent' ? 52 : (role === 'sep' && bead.type === 'spacer' ? 14 : 16);
+    s.style.left = (x - w/2) + 'px';
+    s.style.top = (y - h/2) + 'px';
+    s.innerHTML = `<img src="${bead.image}" alt="${bead.name}">`;
+    canvas.appendChild(s);
+  });
+}
+
+// ── Stats ───────────────────────────────────────────────────────
+function renderStats() {
+  const counts = {main:0, accent:0, sep:0};
+  template.forEach(r => counts[r]++);
+  const c = document.getElementById('stats');
+  c.innerHTML = `
+    <div class="stat"><div class="v">${template.length}</div><div class="l">Celkem slotů</div></div>
+    <div class="stat"><div class="v">${counts.main}</div><div class="l">Hlavní 6mm</div></div>
+    <div class="stat"><div class="v">${counts.accent}</div><div class="l">Akcent 8mm</div></div>
+    <div class="stat"><div class="v">${counts.sep}</div><div class="l">Rozdělovač</div></div>
+  `;
+  document.getElementById('info-len').textContent = template.length;
+  document.getElementById('info-allowed-6').textContent = allowed.main.length;
+  document.getElementById('info-allowed-8').textContent = allowed.accent.length;
+  document.getElementById('info-allowed-sep').textContent = allowed.sep.length;
+}
+
+function exportJSON() {
+  const cfg = {
+    layout_mode: 'slotbuilder',
+    template: template,
+    allowed_beads: allowed,
+    defaults: {
+      main: defaults.main.slug,
+      accent: defaults.accent.slug,
+      sep: defaults.sep.slug,
+    },
+  };
+  const out = document.getElementById('json-out');
+  out.style.display = 'block';
+  out.value = JSON.stringify(cfg, null, 2);
+  navigator.clipboard?.writeText(out.value);
+}
+
+function renderAll() {
+  renderTplSlots();
+  renderAllowed();
+  renderDefaults();
+  renderPreview();
+  renderStats();
+}
+
+window.addEventListener('resize', renderPreview);
+renderAll();
+</script>
+</body>
+</html>

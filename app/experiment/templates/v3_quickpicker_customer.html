@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V3 Quickpicker — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#fbf9f6;--surface:#fff;--ink:#2d2622;--muted:#8a8079;--accent:#c97b5c;--border:#ede5da;--radius:14px}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:500}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+
+  .wrap{max-width:780px;margin:0 auto;padding:2.5rem 1.5rem}
+
+  /* Progress */
+  .progress{display:flex;align-items:center;gap:.5rem;margin-bottom:2rem;justify-content:center}
+  .pdot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:background .2s,transform .2s}
+  .pdot.done{background:var(--accent)}
+  .pdot.active{background:var(--accent);transform:scale(1.4)}
+  .pbar{height:2px;width:40px;background:var(--border)}
+  .pbar.done{background:var(--accent)}
+
+  /* Step container */
+  .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2.5rem;text-align:center;animation:slidein .3s ease-out}
+  @keyframes slidein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .step h2{margin:0 0 .5rem;font-size:1.6rem;font-weight:500;letter-spacing:-0.01em}
+  .step .sub{color:var(--muted);margin:0 0 2rem;font-size:1rem}
+
+  /* Option buttons */
+  .opts{display:grid;gap:1rem;max-width:520px;margin:0 auto}
+  .opts.opts-2{grid-template-columns:1fr 1fr}
+  .opts.opts-3{grid-template-columns:repeat(3,1fr)}
+  .opts.opts-4{grid-template-columns:repeat(2,1fr)}
+  .opt-btn{background:var(--bg);border:2px solid var(--border);padding:1.5rem 1rem;border-radius:12px;cursor:pointer;font-size:1rem;color:var(--ink);transition:border-color .15s,transform .1s;text-align:center}
+  .opt-btn:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .opt-btn .em{display:block;font-size:2rem;margin-bottom:.4rem}
+  .opt-btn .name{font-weight:500;display:block}
+  .opt-btn .desc{display:block;font-size:.8rem;color:var(--muted);margin-top:.2rem}
+
+  .back-btn{margin-top:2rem;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem}
+  .back-btn:hover{color:var(--ink)}
+
+  /* Results grid */
+  .results-header{text-align:center;margin-bottom:2rem}
+  .results-header h2{margin:0 0 .25rem;font-size:1.7rem;font-weight:500}
+  .results-header p{margin:0;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:1.5rem}
+  .design{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .2s}
+  .design:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,0.08)}
+  .design-preview{padding:1.5rem;background:linear-gradient(135deg,#faf7f2,#f1ebe1);height:140px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .design-preview svg{width:100%;height:100%}
+  .design-body{padding:1.25rem}
+  .design-body h3{margin:0 0 .3rem;font-size:1.05rem;font-weight:600}
+  .design-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem}
+  .tag{font-size:.7rem;padding:.15rem .55rem;background:var(--bg);color:var(--muted);border-radius:10px}
+  .design-price{display:flex;justify-content:space-between;align-items:center}
+  .design-price .pr{font-weight:600;color:var(--ink);font-size:1.05rem}
+  .design-price .more{color:var(--accent);font-size:.85rem}
+
+  /* Detail modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(45,38,34,0.6);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--surface);border-radius:var(--radius);max-width:600px;width:100%;padding:2rem;position:relative;max-height:90vh;overflow-y:auto}
+  .modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted)}
+  .modal-preview{background:linear-gradient(135deg,#faf7f2,#f1ebe1);border-radius:10px;padding:2rem;margin-bottom:1.5rem;height:170px;display:flex;align-items:center;justify-content:center}
+  .modal-preview svg{width:100%;height:100%}
+  .modal h2{margin:0 0 .5rem;font-size:1.5rem;font-weight:500}
+  .modal-price{font-size:1.5rem;font-weight:600;color:var(--accent);margin-bottom:1.5rem}
+  .modal-content{font-size:.9rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.6}
+  .modal-content b{color:var(--ink)}
+  .tweaks{background:var(--bg);padding:1rem;border-radius:8px;margin-bottom:1.5rem}
+  .tweaks h4{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .tweaks-options{display:flex;gap:.4rem;flex-wrap:wrap}
+  .tweaks-options img{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+  .tweaks-options img.active{border-color:var(--accent)}
+  .modal-cta{background:var(--accent);color:white;border:none;padding:.95rem;border-radius:8px;font-size:1rem;font-weight:600;width:100%;cursor:pointer}
+  .modal-cta:hover{filter:brightness(0.95)}
+  .restart{text-align:center;margin-top:2rem}
+  .restart button{background:none;border:1px solid var(--border);padding:.5rem 1.2rem;border-radius:6px;cursor:pointer;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V3 — Quickpicker <span style="color:var(--muted);font-weight:400">/ zákaznický pohled</span></h1>
+  <div>
+    <a href="/experiment/v3/admin">→ admin</a>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="progress" id="progress"></div>
+
+  <div id="content"></div>
+
+</div>
+
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-inner"></div>
+</div>
+
+<script>
+const COLLECTIONS = {{ collections|tojson }};
+const ALL_BEADS = {{ all_beads|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+const BASE_PRICE = 460;
+
+// Lookup helper: slug → bead
+function beadBySlug(slug) {
+  return ALL_BEADS.find(b => b.slug === slug) || {slug, name:'?', image:'', type:''};
+}
+
+// Stav wizardu
+let answers = { length: null, palette: null, style: null };
+let step = 0;
+const STEPS = [
+  {
+    key: 'length', q: 'Jakou délku náramku potřebuješ?', sub: 'Tvůj zápěstí je…',
+    cols: 3,
+    options: [
+      { val: 17, em: '🤏', name: '17 cm', desc: 'Útlé / dětské' },
+      { val: 19, em: '✋', name: '19 cm', desc: 'Standard' },
+      { val: 21, em: '🤚', name: '21 cm', desc: 'Větší' },
+    ]
+  },
+  {
+    key: 'palette', q: 'Co tě dnes baví?', sub: 'Vyber barevnou paletu',
+    cols: 2,
+    options: [
+      { val: 'jemne',         em: '🌸', name: 'Něžné',        desc: 'Růžové, ametystové, krémové' },
+      { val: 'zemite',        em: '🍂', name: 'Zemité',       desc: 'Karneol, tygří oko, zeleň' },
+      { val: 'tmave',         em: '🌙', name: 'Tmavé',        desc: 'Onyx, obsidián, labradorit' },
+      { val: 'pestrobarevne', em: '🌈', name: 'Pestrobarevné',desc: 'Mix všeho — překvap mě' },
+    ]
+  },
+  {
+    key: 'style', q: 'Spíš minimalistické, nebo nápadné?', sub: 'Jak by měl náramek vypadat',
+    cols: 2,
+    options: [
+      { val: 'minimal',  em: '◦', name: 'Minimalistické', desc: 'Klidné, méně akcentů' },
+      { val: 'napadne',  em: '✦', name: 'Nápadné',         desc: 'Více akcentů a kontrastů' },
+    ]
+  },
+];
+
+function renderProgress() {
+  const p = document.getElementById('progress');
+  p.innerHTML = '';
+  for (let i = 0; i <= STEPS.length; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'pdot' + (i < step ? ' done' : i === step ? ' active' : '');
+    p.appendChild(dot);
+    if (i < STEPS.length) {
+      const bar = document.createElement('div');
+      bar.className = 'pbar' + (i < step ? ' done' : '');
+      p.appendChild(bar);
+    }
+  }
+}
+
+function renderStep() {
+  renderProgress();
+  const c = document.getElementById('content');
+  if (step >= STEPS.length) { renderResults(); return; }
+  const s = STEPS[step];
+  c.innerHTML = `
+    <div class="step">
+      <h2>${s.q}</h2>
+      <p class="sub">${s.sub}</p>
+      <div class="opts opts-${s.cols}">
+        ${s.options.map(o => `
+          <button class="opt-btn" data-val="${o.val}">
+            <span class="em">${o.em}</span>
+            <span class="name">${o.name}</span>
+            <span class="desc">${o.desc}</span>
+          </button>`).join('')}
+      </div>
+      ${step > 0 ? '<button class="back-btn" onclick="goBack()">← zpět</button>' : ''}
+    </div>`;
+  c.querySelectorAll('.opt-btn').forEach(btn => {
+    btn.onclick = () => {
+      answers[s.key] = btn.dataset.val;
+      step++;
+      renderStep();
+    };
+  });
+}
+
+function goBack() {
+  if (step > 0) {
+    step--;
+    answers[STEPS[step].key] = null;
+    renderStep();
+  }
+}
+
+// ── Filter kolekcí podle odpovědí ────────────────────────────────
+function matchingCollections() {
+  const tags = [answers.palette, answers.style].filter(t => t && t !== 'pestrobarevne');
+  let matched;
+  if (answers.palette === 'pestrobarevne') {
+    // Pestrobarevné = ignoruj filtr palety, použij jen styl
+    matched = COLLECTIONS.filter(c => !answers.style || c.tags.includes(answers.style));
+  } else {
+    matched = COLLECTIONS.filter(c => tags.every(t => c.tags.includes(t)));
+  }
+  // Fallback: pokud nic, ukaž všechny
+  if (matched.length === 0) matched = [...COLLECTIONS];
+  return matched;
+}
+
+function renderResults() {
+  document.getElementById('progress').style.display = 'none';
+  const c = document.getElementById('content');
+  const matched = matchingCollections();
+  const lenAdj = answers.length == 17 ? 0 : answers.length == 19 ? 30 : 60;
+  c.innerHTML = `
+    <div class="results-header">
+      <h2>${matched.length} návrhů pro tebe</h2>
+      <p>Délka ${answers.length} cm · ${answers.palette} · ${answers.style}</p>
+    </div>
+    <div class="grid">
+      ${matched.map(col => `
+        <div class="design" onclick="openDetail('${col.id}')">
+          <div class="design-preview">${renderStrandSVG(col.pattern, 240, 80)}</div>
+          <div class="design-body">
+            <h3>${col.name}</h3>
+            <div class="design-tags">
+              ${col.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+            </div>
+            <div class="design-price">
+              <span class="pr">${(col.price + lenAdj).toLocaleString('cs-CZ')} Kč</span>
+              <span class="more">Detail →</span>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="restart"><button onclick="restart()">↺ začít znovu</button></div>
+  `;
+}
+
+function restart() {
+  step = 0; answers = { length:null, palette:null, style:null };
+  document.getElementById('progress').style.display = '';
+  renderStep();
+}
+
+// ── Render náramku jako lineární řada s mírným obloukem ─────────
+function renderStrandSVG(pattern, w, h) {
+  const n = pattern.length;
+  const padding = 12;
+  const usableW = w - 2 * padding;
+  const stepX = usableW / Math.max(n - 1, 1);
+  const cy = h / 2;
+  const arcDepth = 8;
+  let defs = '', shapes = '', clipIdx = 0;
+  // thread line
+  shapes += `<path d="M ${padding} ${cy + arcDepth} Q ${w/2} ${cy - arcDepth - 4} ${w - padding} ${cy + arcDepth}" stroke="#c0b7a3" stroke-width="1" fill="none" stroke-dasharray="3 2"/>`;
+  pattern.forEach((p, i) => {
+    const bead = beadBySlug(p.bead);
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    const x = padding + i * stepX;
+    const y = cy - arcDepth * (1 - 4 * Math.pow(t - 0.5, 2));
+    let r;
+    if (p.role === 'main')   r = 9;
+    else if (p.role === 'accent') r = 12;
+    else r = bead.type === 'spacer' ? 5 : 3;
+    if (p.role === 'sep' && bead.type === 'spacer') {
+      const tw = 11, th = 6;
+      shapes += `<g transform="translate(${x},${y})"><image href="${bead.image}" x="${-tw/2}" y="${-th/2}" width="${tw}" height="${th}"/></g>`;
+    } else {
+      const id = `c${clipIdx++}-${Math.random().toString(36).slice(2,8)}`;
+      defs += `<clipPath id="${id}"><circle cx="${x}" cy="${y}" r="${r}"/></clipPath>`;
+      shapes += `<image href="${bead.image}" x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>`;
+      shapes += `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="0.8"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>${shapes}</svg>`;
+}
+
+// ── Detail modal ────────────────────────────────────────────────
+let currentDetail = null;
+let currentSepOverride = null;
+
+function openDetail(id) {
+  const col = COLLECTIONS.find(c => c.id === id);
+  currentDetail = col;
+  currentSepOverride = null;
+  renderDetail();
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+function renderDetail() {
+  const col = currentDetail;
+  if (!col) return;
+  // Aplikuj override separátoru pokud je
+  const pattern = col.pattern.map(p =>
+    (p.role === 'sep' && currentSepOverride) ? {...p, bead: currentSepOverride} : p
+  );
+  const lenAdj = answers.length == 17 ? 0 : answers.length == 19 ? 30 : 60;
+  const sepPrice = currentSepOverride ? (beadBySlug(currentSepOverride).price || 0) : 0;
+  const totalPrice = col.price + lenAdj + sepPrice * pattern.filter(p => p.role==='sep').length;
+  document.getElementById('modal-inner').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-preview">${renderStrandSVG(pattern, 480, 110)}</div>
+    <h2>${col.name}</h2>
+    <div class="modal-price">${Math.round(totalPrice).toLocaleString('cs-CZ')} Kč</div>
+    <div class="modal-content">
+      Hotový návrh, který právě teď vyhovuje tvojí volbě (${answers.length} cm, ${answers.palette}, ${answers.style}).
+      Pokud chceš drobnost změnit, vyber jiný rozdělovač.
+    </div>
+    <div class="tweaks">
+      <h4>Změnit rozdělovač</h4>
+      <div class="tweaks-options">
+        ${SEPARATORS.map(s => `
+          <img src="${s.image}" alt="${s.name}" title="${s.name}"
+               class="${(currentSepOverride||col.pattern.find(p=>p.role==='sep')?.bead)===s.slug?'active':''}"
+               onclick="setSepOverride('${s.slug}')">
+        `).join('')}
+      </div>
+    </div>
+    <button class="modal-cta">Přidat do košíku — ${Math.round(totalPrice).toLocaleString('cs-CZ')} Kč</button>
+  `;
+}
+
+function setSepOverride(slug) {
+  currentSepOverride = slug;
+  renderDetail();
+}
+
+renderStep();
+</script>
+</body>
+</html>

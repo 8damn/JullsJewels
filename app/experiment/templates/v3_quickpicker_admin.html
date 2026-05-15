@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V3 Quickpicker — admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#fbf9f6;--surface:#fff;--ink:#2d2622;--muted:#8a8079;--accent:#c97b5c;--border:#ede5da;--radius:10px;--danger:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+
+  .wrap{max-width:1300px;margin:0 auto;padding:1.5rem}
+
+  /* Toolbar */
+  .toolbar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  .search{flex:1;min-width:220px;padding:.5rem .85rem;border:1px solid var(--border);border-radius:6px;font-size:.9rem;background:var(--bg)}
+  .filter-tag{padding:.3rem .7rem;background:var(--bg);border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:.78rem;color:var(--muted)}
+  .filter-tag.active{background:var(--ink);color:white;border-color:var(--ink)}
+  .add-btn{margin-left:auto;background:var(--accent);color:white;border:none;padding:.55rem 1rem;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500}
+  .add-btn:hover{filter:brightness(0.95)}
+
+  /* Table */
+  .table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .table-head{display:grid;grid-template-columns:50px 1.5fr 2fr 1fr 90px 100px 130px;padding:.7rem 1rem;background:var(--bg);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;align-items:center;gap:1rem}
+  .row{display:grid;grid-template-columns:50px 1.5fr 2fr 1fr 90px 100px 130px;padding:.85rem 1rem;border-top:1px solid var(--border);align-items:center;gap:1rem;transition:background .1s}
+  .row:hover{background:var(--bg)}
+  .row.inactive{opacity:0.5}
+
+  .row .toggle{position:relative;width:34px;height:20px;background:var(--border);border-radius:10px;cursor:pointer;transition:background .15s}
+  .row .toggle.on{background:var(--accent)}
+  .row .toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:white;border-radius:50%;transition:transform .15s}
+  .row .toggle.on::after{transform:translateX(14px)}
+
+  .col-name{font-weight:600;font-size:.95rem}
+  .col-name input{width:100%;padding:.3rem;border:1px solid var(--border);border-radius:4px;font-size:.9rem;font-weight:600}
+
+  .preview-cell{height:50px;overflow:hidden;display:flex;align-items:center}
+  .preview-cell svg{max-height:50px;max-width:100%}
+
+  .tags-cell{display:flex;flex-wrap:wrap;gap:.25rem}
+  .tag-pill{font-size:.7rem;padding:.1rem .5rem;background:var(--bg);color:var(--muted);border-radius:10px;border:1px solid var(--border)}
+
+  .price-cell input{width:70px;padding:.3rem;border:1px solid var(--border);border-radius:4px;font-size:.85rem;text-align:right}
+
+  .actions{display:flex;gap:.3rem}
+  .actions button{padding:.3rem .6rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:.78rem}
+  .actions button:hover{background:var(--bg)}
+  .actions .del{color:var(--danger);border-color:#fed7d7}
+  .actions .del:hover{background:#fee2e2}
+
+  /* Editor (expandable / inline below row) */
+  .editor{background:var(--bg);border-top:1px solid var(--border);padding:1.25rem 1rem;display:none}
+  .editor.open{display:block}
+  .editor h3{margin:0 0 .75rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .pattern-edit{display:flex;flex-wrap:wrap;gap:4px;padding:.75rem;background:var(--surface);border-radius:8px;margin-bottom:1rem;overflow-x:auto}
+  .pos-slot{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .pos-slot img{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .pos-slot.role-accent img{width:40px;height:40px}
+  .pos-slot.role-sep img{width:18px;height:18px}
+  .pos-slot.role-sep.spacer img{width:24px;height:14px;border-radius:5px}
+  .pos-slot select{font-size:.7rem;padding:1px;border:1px solid var(--border);border-radius:3px;background:var(--surface);max-width:50px}
+  .pos-slot .swap{font-size:.65rem;color:var(--accent);cursor:pointer;text-decoration:underline;background:none;border:none;padding:0;margin-top:1px}
+
+  .tags-edit{display:flex;flex-wrap:wrap;gap:.4rem}
+  .tags-edit label{display:flex;align-items:center;gap:.3rem;padding:.3rem .6rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:.8rem}
+  .tags-edit label.selected{background:var(--ink);color:white;border-color:var(--ink)}
+  .tags-edit label input{display:none}
+
+  .empty-state{text-align:center;padding:3rem;color:var(--muted)}
+
+  /* Bead picker overlay */
+  .picker{position:fixed;inset:0;background:rgba(45,38,34,0.5);display:none;align-items:center;justify-content:center;z-index:50;padding:1rem}
+  .picker.show{display:flex}
+  .picker-inner{background:var(--surface);border-radius:var(--radius);max-width:520px;width:100%;padding:1.5rem;max-height:80vh;overflow-y:auto}
+  .picker-inner h3{margin:0 0 1rem;font-size:1.1rem}
+  .picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.6rem}
+  .picker-item{display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:.5rem;border-radius:6px;border:1px solid transparent;text-align:center}
+  .picker-item:hover{background:var(--bg);border-color:var(--border)}
+  .picker-item img{width:48px;height:48px;border-radius:50%;margin-bottom:.3rem}
+  .picker-item span{font-size:.72rem;color:var(--ink);line-height:1.2}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V3 — Quickpicker <span style="color:var(--muted);font-weight:400">/ admin</span></h1>
+  <div>
+    <a href="/experiment/v3" target="_blank">→ otevřít zákaznický pohled</a>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="toolbar">
+    <input class="search" id="search" placeholder="🔍 hledat kolekce…" oninput="render()">
+    <span style="color:var(--muted);font-size:.8rem">tagy:</span>
+    <button class="filter-tag" data-tag="jemne" onclick="toggleFilter(this)">jemne</button>
+    <button class="filter-tag" data-tag="zemite" onclick="toggleFilter(this)">zemite</button>
+    <button class="filter-tag" data-tag="tmave" onclick="toggleFilter(this)">tmave</button>
+    <button class="filter-tag" data-tag="minimal" onclick="toggleFilter(this)">minimal</button>
+    <button class="filter-tag" data-tag="napadne" onclick="toggleFilter(this)">napadne</button>
+    <button class="add-btn" onclick="addCollection()">+ Nová kolekce</button>
+  </div>
+
+  <div class="table">
+    <div class="table-head">
+      <div>Aktivní</div>
+      <div>Název</div>
+      <div>Náhled</div>
+      <div>Tagy</div>
+      <div>Cena</div>
+      <div>Pozic</div>
+      <div>Akce</div>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+</div>
+
+<!-- Bead picker overlay -->
+<div class="picker" id="picker" onclick="if(event.target===this)closePicker()">
+  <div class="picker-inner">
+    <h3 id="picker-title">Vyber korálek</h3>
+    <div class="picker-grid" id="picker-grid"></div>
+  </div>
+</div>
+
+<script>
+const BEADS_6MM = {{ beads_6mm|tojson }};
+const BEADS_8MM = {{ beads_8mm|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+const ALL_BEADS = {{ all_beads|tojson }};
+
+const POOL = { main: BEADS_6MM, accent: BEADS_8MM, sep: SEPARATORS };
+const TAGS_PALETTE = ['jemne', 'zemite', 'tmave'];
+const TAGS_STYLE = ['minimal', 'napadne'];
+
+function beadBySlug(slug) { return ALL_BEADS.find(b => b.slug === slug) || {slug, image:''}; }
+
+// Stav: kolekce + UI
+let collections = {{ collections|tojson }}.map(c => ({...c, active: true}));
+let editingId = null;
+let activeFilters = new Set();
+let pickerCtx = null; // {colId, posIdx, role}
+
+// ── Filtry ──────────────────────────────────────────────────────
+function toggleFilter(btn) {
+  const tag = btn.dataset.tag;
+  if (activeFilters.has(tag)) { activeFilters.delete(tag); btn.classList.remove('active'); }
+  else { activeFilters.add(tag); btn.classList.add('active'); }
+  render();
+}
+
+function filtered() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  return collections.filter(c => {
+    if (q && !c.name.toLowerCase().includes(q)) return false;
+    for (const t of activeFilters) {
+      if (!c.tags.includes(t)) return false;
+    }
+    return true;
+  });
+}
+
+// ── Render ──────────────────────────────────────────────────────
+function render() {
+  const c = document.getElementById('rows');
+  const list = filtered();
+  if (list.length === 0) {
+    c.innerHTML = '<div class="empty-state">Žádné kolekce neodpovídají filtrům.</div>';
+    return;
+  }
+  c.innerHTML = list.map(col => `
+    <div class="row ${col.active ? '' : 'inactive'}" data-id="${col.id}">
+      <div>
+        <div class="toggle ${col.active ? 'on' : ''}" onclick="toggleActive('${col.id}')"></div>
+      </div>
+      <div class="col-name">
+        <input value="${col.name}" oninput="renameCol('${col.id}', this.value)">
+      </div>
+      <div class="preview-cell">${renderStrandSVG(col.pattern, 220, 50)}</div>
+      <div class="tags-cell">
+        ${col.tags.map(t => `<span class="tag-pill">${t}</span>`).join('')}
+      </div>
+      <div class="price-cell">
+        <input type="number" value="${col.price}" oninput="setPrice('${col.id}', this.value)">
+      </div>
+      <div>${col.pattern.length}</div>
+      <div class="actions">
+        <button onclick="toggleEditor('${col.id}')">${editingId === col.id ? '× zavřít' : '✎ upravit'}</button>
+        <button class="del" onclick="deleteCol('${col.id}')">🗑</button>
+      </div>
+    </div>
+    ${editingId === col.id ? renderEditor(col) : ''}
+  `).join('');
+}
+
+function renderEditor(col) {
+  return `
+    <div class="editor open">
+      <h3>Vzorec — klikni na korálek pro výměnu</h3>
+      <div class="pattern-edit">
+        ${col.pattern.map((p, i) => {
+          const bead = beadBySlug(p.bead);
+          const isSpacer = p.role === 'sep' && bead.type === 'spacer';
+          return `
+            <div class="pos-slot role-${p.role}${isSpacer ? ' spacer':''}">
+              <img src="${bead.image}" alt="${bead.name||''}" title="${bead.name||''}"
+                   onclick="openPicker('${col.id}', ${i}, '${p.role}')">
+              <button class="swap" onclick="cyclePos('${col.id}', ${i})">↻</button>
+            </div>`;
+        }).join('')}
+        <button onclick="addPos('${col.id}')" style="border:2px dashed #ccc;background:none;border-radius:8px;padding:.4rem .8rem;cursor:pointer;align-self:center">+ pozice</button>
+      </div>
+
+      <h3>Tagy</h3>
+      <div class="tags-edit">
+        ${[...TAGS_PALETTE, ...TAGS_STYLE].map(t => `
+          <label class="${col.tags.includes(t) ? 'selected' : ''}">
+            <input type="checkbox" ${col.tags.includes(t) ? 'checked' : ''} onchange="toggleTag('${col.id}', '${t}')">
+            ${t}
+          </label>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Bead preview rendering ──────────────────────────────────────
+function renderStrandSVG(pattern, w, h) {
+  const n = pattern.length;
+  if (n === 0) return '';
+  const padding = 6;
+  const usableW = w - 2 * padding;
+  const stepX = usableW / Math.max(n - 1, 1);
+  const cy = h / 2;
+  let defs = '', shapes = '';
+  pattern.forEach((p, i) => {
+    const bead = beadBySlug(p.bead);
+    const x = padding + i * stepX;
+    let r;
+    if (p.role === 'main') r = Math.min(8, stepX*0.42);
+    else if (p.role === 'accent') r = Math.min(11, stepX*0.55);
+    else r = bead.type === 'spacer' ? 4 : 2.5;
+    if (p.role === 'sep' && bead.type === 'spacer') {
+      shapes += `<image href="${bead.image}" x="${x - 7}" y="${cy - 3}" width="14" height="6"/>`;
+    } else {
+      const id = `c${Math.random().toString(36).slice(2,8)}`;
+      defs += `<clipPath id="${id}"><circle cx="${x}" cy="${cy}" r="${r}"/></clipPath>`;
+      shapes += `<image href="${bead.image}" x="${x-r}" y="${cy-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>`;
+      shapes += `<circle cx="${x}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="0.7"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>${shapes}</svg>`;
+}
+
+// ── Mutace ──────────────────────────────────────────────────────
+function toggleActive(id) {
+  const c = collections.find(x => x.id === id); if (c) c.active = !c.active;
+  render();
+}
+function renameCol(id, name) {
+  const c = collections.find(x => x.id === id); if (c) c.name = name;
+}
+function setPrice(id, price) {
+  const c = collections.find(x => x.id === id); if (c) c.price = parseInt(price) || 0;
+}
+function deleteCol(id) {
+  if (!confirm('Smazat kolekci?')) return;
+  collections = collections.filter(c => c.id !== id);
+  if (editingId === id) editingId = null;
+  render();
+}
+function toggleEditor(id) {
+  editingId = (editingId === id) ? null : id;
+  render();
+}
+function toggleTag(id, tag) {
+  const c = collections.find(x => x.id === id);
+  if (!c) return;
+  if (c.tags.includes(tag)) c.tags = c.tags.filter(t => t !== tag);
+  else c.tags = [...c.tags, tag];
+  render();
+}
+
+function nextRole(r) { return r === 'main' ? 'accent' : r === 'accent' ? 'sep' : 'main'; }
+
+function cyclePos(id, idx) {
+  const c = collections.find(x => x.id === id); if (!c) return;
+  const newRole = nextRole(c.pattern[idx].role);
+  c.pattern[idx].role = newRole;
+  c.pattern[idx].bead = POOL[newRole][0].slug;
+  render();
+}
+function addPos(id) {
+  const c = collections.find(x => x.id === id); if (!c) return;
+  c.pattern.push({ role: 'main', bead: POOL.main[0].slug });
+  render();
+}
+
+function addCollection() {
+  const id = 'col-' + Date.now();
+  collections.unshift({
+    id, name: 'Nová kolekce', tags: [], price: 500, active: true,
+    pattern: ['main','sep','main','sep','main','sep','accent','sep','accent','sep','accent','sep','main','sep','main','sep','main']
+              .map(r => ({ role: r, bead: POOL[r][0].slug }))
+  });
+  editingId = id;
+  render();
+}
+
+// ── Bead picker ─────────────────────────────────────────────────
+function openPicker(colId, posIdx, role) {
+  pickerCtx = { colId, posIdx, role };
+  document.getElementById('picker-title').textContent =
+    `Vyber ${role === 'main' ? 'hlavní korálek 6mm' : role === 'accent' ? 'akcentový korálek 8mm' : 'rozdělovač'}`;
+  const grid = document.getElementById('picker-grid');
+  grid.innerHTML = POOL[role].map(b => `
+    <div class="picker-item" onclick="selectBead('${b.slug}')">
+      <img src="${b.image}" alt="${b.name}">
+      <span>${b.name}</span>
+    </div>`).join('');
+  document.getElementById('picker').classList.add('show');
+}
+function closePicker() {
+  document.getElementById('picker').classList.remove('show');
+  pickerCtx = null;
+}
+function selectBead(slug) {
+  if (!pickerCtx) return;
+  const c = collections.find(x => x.id === pickerCtx.colId);
+  if (c) c.pattern[pickerCtx.posIdx].bead = slug;
+  closePicker();
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

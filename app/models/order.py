@@ -39,7 +39,9 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     user: Mapped[Optional["User"]] = relationship("User", back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order")
+    items: Mapped[list["OrderItem"]] = relationship(
+        "OrderItem", back_populates="order", cascade="all, delete-orphan",
+    )
 
 
 class OrderItem(Base):

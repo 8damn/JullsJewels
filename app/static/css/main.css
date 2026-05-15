@@ -356,6 +356,77 @@ p  { color: var(--text-muted); }
 .dim-option input:checked + .dim-option-chip { border-color: var(--accent); background: var(--accent-light); color: var(--text); }
 .configurator-price { font-family: var(--ff-heading); font-size: 2rem; color: var(--accent); margin-block: 1.5rem .5rem; }
 
+/* ── Bead Chain Builder ────────────────────────────────────── */
+.bc-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 700px;
+}
+.bc-preview-wrap {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1rem .5rem;
+  text-align: center;
+}
+.bc-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.bc-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.bc-dim-section {}
+.bc-length-row {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-top: .5rem;
+}
+.bead-option-grid {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: .5rem;
+}
+.bead-option-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+}
+.bead-option {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  outline: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.bead-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.bead-option--active {
+  border-color: var(--text);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px var(--accent-light), 0 2px 8px rgba(0,0,0,.2);
+}
+.bead-option-name {
+  font-size: .72rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 56px;
+  line-height: 1.2;
+}
+
 /* ── Blog ──────────────────────────────────────────────────── */
 .blog-grid {
   display: grid;
@@ -440,6 +511,44 @@ p  { color: var(--text-muted); }
   font-size: .875rem; padding: .25rem 0; cursor: pointer;
 }
 .filter-check input { accent-color: var(--accent); }
+
+/* ── Dual price range slider ───────────────────────────────── */
+.psd {
+  position: relative; height: 20px; margin: .5rem 0 .4rem;
+}
+.psd__track {
+  position: absolute; left: 0; right: 0; top: 50%; height: 4px;
+  background: var(--border); border-radius: 2px; transform: translateY(-50%);
+}
+.psd__fill {
+  position: absolute; top: 50%; height: 4px;
+  background: var(--accent); border-radius: 2px; transform: translateY(-50%);
+}
+.psd .psd__thumb {
+  position: absolute; width: 100%; height: 100%;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; pointer-events: none; margin: 0;
+}
+.psd .psd__thumb::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25); cursor: pointer; pointer-events: all;
+}
+.psd .psd__thumb::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25); cursor: pointer; pointer-events: all;
+}
+.price-range {
+  display: flex; align-items: center; gap: .35rem;
+}
+.price-range input[type="number"] {
+  width: 68px; padding: .3rem .4rem; border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: .82rem; background: var(--surface);
+  -moz-appearance: textfield;
+}
+.price-range input[type="number"]::-webkit-inner-spin-button { opacity: 0; }
 @media (max-width: 860px) {
   .catalog-layout { grid-template-columns: 1fr; }
   .filter-sidebar { position: static; }

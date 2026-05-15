@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V1 Photostrand — admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f7f5f1;--surface:#fff;--ink:#2a2622;--muted:#7a736b;--accent:#b9846b;--border:#e6dfd6;--radius:12px;
+        --c-main:#b9846b;--c-accent:#6b9bb9;--c-sep:#a8a8a8}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding:1.5rem;max-width:1400px;margin:0 auto}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .panel h2{margin:0 0 1rem;font-size:1rem;font-weight:600}
+  .panel h3{font-size:.8rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin:1.5rem 0 .6rem}
+
+  .pattern-editor{background:var(--bg);padding:1rem;border-radius:8px;overflow-x:auto}
+  .slots-row{display:flex;gap:4px;align-items:center;min-height:60px;padding:.5rem 0}
+  .slot{min-width:40px;height:50px;border:2px solid transparent;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;cursor:pointer;flex-shrink:0;position:relative;transition:transform .1s}
+  .slot:hover{transform:scale(1.08)}
+  .slot.role-main   {background:#f4e6dc;color:#7c4a30;border-color:#d4a98e}
+  .slot.role-accent {background:#dce8f4;color:#2a4a7c;border-color:#8eaed4}
+  .slot.role-sep    {background:#ececec;color:#555;border-color:#bbb;min-width:24px;height:28px;font-size:.65rem}
+  .slot .x{position:absolute;top:-6px;right:-6px;background:#c0392b;color:white;border-radius:50%;width:16px;height:16px;font-size:.7rem;display:none;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+  .slot:hover .x{display:flex}
+
+  .pattern-actions{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.75rem}
+  .pattern-actions button{padding:.4rem .8rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.8rem}
+  .pattern-actions button:hover{background:var(--bg)}
+  .pattern-actions .primary{background:var(--ink);color:white;border-color:var(--ink)}
+
+  .legend{display:flex;gap:1rem;font-size:.8rem;color:var(--muted);margin-top:.5rem;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:.3rem}
+  .legend .dot{width:14px;height:14px;border-radius:4px;display:inline-block}
+
+  .presets{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+  .preset{padding:.4rem .7rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.8rem}
+  .preset:hover{background:var(--surface)}
+
+  .defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:.5rem}
+  .defcol h4{margin:0 0 .4rem;font-size:.85rem;font-weight:600}
+  .defcol-grid{display:flex;flex-wrap:wrap;gap:.4rem}
+  .defcol-grid img{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+  .defcol-grid img.active{border-color:var(--accent)}
+  .defcol-grid img:hover{transform:scale(1.08)}
+
+  .stage{position:relative}
+  .stage svg{width:100%;height:auto;display:block}
+  .stage-info{font-size:.8rem;color:var(--muted);background:var(--bg);padding:.6rem;border-radius:6px;margin-top:.75rem}
+
+  .export{background:var(--ink);color:white;padding:.6rem 1rem;border-radius:6px;border:none;cursor:pointer;font-size:.85rem;width:100%;margin-top:1rem}
+  .export:hover{filter:brightness(1.1)}
+  textarea.json{width:100%;background:#1e1e1e;color:#a8e6a8;padding:.75rem;border-radius:6px;font-family:monospace;font-size:.75rem;border:none;min-height:120px;margin-top:.5rem}
+
+  .toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem}
+  .toggle input{cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V1 — Photostrand <span style="color:var(--muted);font-weight:400">/ admin</span></h1>
+  <div>
+    <a href="/experiment/v1">→ zákaznický pohled</a>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── LEVÝ PANEL: editor vzorce ── #}
+  <div class="panel">
+    <h2>Vzorec náramku</h2>
+    <p style="margin:0;font-size:.85rem;color:var(--muted)">
+      Klikni na slot pro rotaci role: <b>main</b> → <b>akcent</b> → <b>separator</b>. Kliknutí na × odebere slot.
+    </p>
+
+    <div class="pattern-editor">
+      <div class="slots-row" id="slots"></div>
+      <div class="pattern-actions">
+        <button onclick="addSlot('main')">+ hlavní</button>
+        <button onclick="addSlot('accent')">+ akcent</button>
+        <button onclick="addSlot('sep')">+ separator</button>
+        <button onclick="undo()" title="vrátit poslední krok">↶ zpět</button>
+        <button onclick="clearPattern()">vyčistit</button>
+        <label class="toggle" style="margin-left:auto">
+          <input type="checkbox" id="symmetry" checked> Symetrický vzorec
+        </label>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:#d4a98e"></i> main 6 mm</span>
+        <span><i class="dot" style="background:#8eaed4"></i> akcent 8 mm</span>
+        <span><i class="dot" style="background:#bbb"></i> separator</span>
+      </div>
+    </div>
+
+    <h3>Předvolené vzorce</h3>
+    <div class="presets">
+      <button class="preset" onclick="loadPreset('classic')">Klasický (3 akcenty uprostřed)</button>
+      <button class="preset" onclick="loadPreset('single')">Jeden akcent</button>
+      <button class="preset" onclick="loadPreset('triplet')">Trojice akcentů</button>
+      <button class="preset" onclick="loadPreset('all-mains')">Bez akcentů</button>
+      <button class="preset" onclick="loadPreset('alternating')">Střídavý</button>
+    </div>
+
+    <h3>Default barvy pro role</h3>
+    <p style="margin:0;font-size:.8rem;color:var(--muted)">
+      Co zákazník uvidí při otevření konfigurátoru. Zákazník je může změnit.
+    </p>
+    <div class="defaults">
+      <div class="defcol">
+        <h4>Hlavní (6 mm)</h4>
+        <div class="defcol-grid" id="def-main"></div>
+      </div>
+      <div class="defcol">
+        <h4>Akcent (8 mm)</h4>
+        <div class="defcol-grid" id="def-accent"></div>
+      </div>
+      <div class="defcol">
+        <h4>Separator</h4>
+        <div class="defcol-grid" id="def-sep"></div>
+      </div>
+    </div>
+
+    <button class="export" onclick="exportJSON()">📋 Exportovat konfiguraci (JSON)</button>
+    <textarea class="json" id="json-out" placeholder="Po kliknutí na Exportovat se sem zkopíruje config..."></textarea>
+  </div>
+
+  {# ── PRAVÝ PANEL: live preview ── #}
+  <div class="panel">
+    <h2>Náhled (jak to uvidí zákazník)</h2>
+    <div class="stage">
+      <svg id="strand" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
+        <defs id="defs"></defs>
+        <g id="thread"></g>
+        <g id="beads"></g>
+      </svg>
+    </div>
+    <div class="stage-info">
+      <strong>Statistiky vzorce:</strong>
+      <span id="stats">—</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BEADS_6MM = {{ beads_6mm|tojson }};
+const BEADS_8MM = {{ beads_8mm|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+const ALL_BEADS = {
+  main: BEADS_6MM,
+  accent: BEADS_8MM,
+  sep: SEPARATORS,
+};
+
+// Stav
+let pattern = {{ default_pattern_v1|tojson }};
+const history = [];
+const defaults = {
+  main: BEADS_6MM[0],
+  accent: BEADS_8MM[0],
+  sep: SEPARATORS[0],
+};
+
+const PRESETS = {
+  classic:     ['main','sep','main','sep','main','sep','accent','sep','accent','sep','accent','sep','main','sep','main','sep','main'],
+  single:      ['main','sep','main','sep','main','sep','main','sep','accent','sep','main','sep','main','sep','main','sep','main'],
+  triplet:     ['main','sep','accent','sep','accent','sep','accent','sep','main','sep','accent','sep','accent','sep','accent','sep','main'],
+  'all-mains': ['main','sep','main','sep','main','sep','main','sep','main','sep','main','sep','main','sep','main','sep','main'],
+  alternating: ['main','sep','accent','sep','main','sep','accent','sep','main','sep','accent','sep','main','sep','accent','sep','main'],
+};
+
+function pushHistory() { history.push([...pattern]); if (history.length > 30) history.shift(); }
+function undo() { if (history.length) { pattern = history.pop(); renderAll(); } }
+
+function nextRole(r) {
+  return r === 'main' ? 'accent' : r === 'accent' ? 'sep' : 'main';
+}
+
+function cycleSlot(idx) {
+  pushHistory();
+  pattern[idx] = nextRole(pattern[idx]);
+  if (document.getElementById('symmetry').checked) {
+    const mirror = pattern.length - 1 - idx;
+    if (mirror !== idx) pattern[mirror] = pattern[idx];
+  }
+  renderAll();
+}
+
+function deleteSlot(idx) {
+  pushHistory();
+  const sym = document.getElementById('symmetry').checked;
+  const mirror = pattern.length - 1 - idx;
+  if (sym && mirror !== idx) {
+    pattern = pattern.filter((_, i) => i !== idx && i !== mirror);
+  } else {
+    pattern.splice(idx, 1);
+  }
+  renderAll();
+}
+
+function addSlot(role) {
+  pushHistory();
+  pattern.push(role);
+  if (document.getElementById('symmetry').checked) {
+    pattern.unshift(role);
+  }
+  renderAll();
+}
+
+function clearPattern() { pushHistory(); pattern = []; renderAll(); }
+
+function loadPreset(name) { pushHistory(); pattern = [...PRESETS[name]]; renderAll(); }
+
+// ── Render slotů ─────────────────────────────────────────────────
+function renderSlots() {
+  const c = document.getElementById('slots');
+  c.innerHTML = '';
+  if (pattern.length === 0) {
+    c.innerHTML = '<span style="color:var(--muted);font-size:.85rem">Prázdný vzorec — přidej slot nebo načti preset.</span>';
+    return;
+  }
+  pattern.forEach((role, i) => {
+    const s = document.createElement('div');
+    s.className = 'slot role-' + role;
+    s.textContent = role === 'main' ? 'M' : role === 'accent' ? 'A' : '·';
+    s.onclick = (e) => { if (e.target.classList.contains('x')) return; cycleSlot(i); };
+    const x = document.createElement('span');
+    x.className = 'x';
+    x.textContent = '×';
+    x.onclick = (e) => { e.stopPropagation(); deleteSlot(i); };
+    s.appendChild(x);
+    c.appendChild(s);
+  });
+}
+
+// ── Render default bead picker ───────────────────────────────────
+function renderDefaults() {
+  ['main','accent','sep'].forEach(role => {
+    const c = document.getElementById('def-' + role);
+    c.innerHTML = '';
+    ALL_BEADS[role].forEach(b => {
+      const img = document.createElement('img');
+      img.src = b.image;
+      img.alt = b.name;
+      img.title = b.name;
+      if (b.slug === defaults[role].slug) img.classList.add('active');
+      img.onclick = () => { defaults[role] = b; renderAll(); };
+      c.appendChild(img);
+    });
+  });
+}
+
+// ── Render preview (stejné jako customer V1) ─────────────────────
+function renderStrand() {
+  const beads = document.getElementById('beads');
+  const thread = document.getElementById('thread');
+  const defs = document.getElementById('defs');
+  beads.innerHTML = ''; thread.innerHTML = ''; defs.innerHTML = '';
+  if (pattern.length === 0) return;
+
+  const cx = 300, cy = 270, R = 180;
+  const sDeg = 135, eDeg = 405;
+  const n = pattern.length;
+
+  const tStart = polar(cx, cy, R, sDeg);
+  const tEnd = polar(cx, cy, R, eDeg);
+  thread.innerHTML = `<path d="M ${tStart.x} ${tStart.y} A ${R} ${R} 0 1 1 ${tEnd.x} ${tEnd.y}"
+    stroke="#bbb" stroke-width="1.5" stroke-dasharray="5 3" fill="none"/>`;
+
+  pattern.forEach((role, i) => {
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    const deg = sDeg + t * (eDeg - sDeg);
+    const p = polar(cx, cy, R, deg);
+    const bead = defaults[role];
+    let radius = role === 'main' ? 18 : role === 'accent' ? 24 : (bead.type === 'spacer' ? 8 : 5);
+
+    if (role === 'sep' && bead.type === 'spacer') {
+      const tangentDeg = deg + 90;
+      const w = 22, h = 10;
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${tangentDeg})`);
+      g.innerHTML = `<image href="${bead.image}" x="${-w/2}" y="${-h/2}" width="${w}" height="${h}"/>`;
+      beads.appendChild(g);
+    } else {
+      const clipId = `clip-${i}`;
+      defs.innerHTML += `<clipPath id="${clipId}"><circle cx="${p.x}" cy="${p.y}" r="${radius}"/></clipPath>`;
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.innerHTML = `
+        <image href="${bead.image}" x="${p.x - radius}" y="${p.y - radius}"
+               width="${radius*2}" height="${radius*2}"
+               clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid slice"/>
+        <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="none"
+                stroke="rgba(0,0,0,0.18)" stroke-width="1"/>`;
+      beads.appendChild(g);
+    }
+  });
+}
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function renderStats() {
+  const counts = { main: 0, accent: 0, sep: 0 };
+  pattern.forEach(r => counts[r]++);
+  document.getElementById('stats').innerHTML =
+    `${pattern.length} pozic — <b>${counts.main}</b> hlavní, <b>${counts.accent}</b> akcent, <b>${counts.sep}</b> separator`;
+}
+
+function exportJSON() {
+  const cfg = {
+    pattern: pattern,
+    defaults: {
+      main:   defaults.main.slug,
+      accent: defaults.accent.slug,
+      sep:    defaults.sep.slug,
+    },
+    layout_mode: 'photostrand',
+    bead_count: pattern.length,
+  };
+  const txt = JSON.stringify(cfg, null, 2);
+  document.getElementById('json-out').value = txt;
+  navigator.clipboard?.writeText(txt);
+}
+
+function renderAll() {
+  renderSlots();
+  renderDefaults();
+  renderStrand();
+  renderStats();
+}
+
+renderAll();
+</script>
+</body>
+</html>

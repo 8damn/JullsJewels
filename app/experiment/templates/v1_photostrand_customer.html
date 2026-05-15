@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V1 Photostrand — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f7f5f1;--surface:#fff;--ink:#2a2622;--muted:#7a736b;--accent:#b9846b;--border:#e6dfd6;--radius:12px}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem}
+  .layout{display:grid;grid-template-columns:1fr 360px;gap:2rem;padding:2rem 1.5rem;max-width:1200px;margin:0 auto}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .stage{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;position:relative}
+  .stage svg{width:100%;height:auto;display:block}
+  .price{position:absolute;top:1rem;right:1rem;background:var(--ink);color:white;padding:.5rem 1rem;border-radius:8px;font-weight:600}
+  .stage-controls{display:flex;justify-content:center;gap:.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
+  .stage-controls button{background:var(--bg);border:1px solid var(--border);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.85rem}
+  .stage-controls button:hover{background:white}
+  aside{display:flex;flex-direction:column;gap:1.5rem}
+  .dim{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .dim h3{margin:0 0 .75rem;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  .options{display:flex;flex-wrap:wrap;gap:.5rem}
+  .opt{cursor:pointer;border:2px solid transparent;border-radius:50%;padding:2px;transition:transform .1s,border-color .15s;background:none}
+  .opt img{width:44px;height:44px;display:block;border-radius:50%}
+  .opt:hover{transform:scale(1.08)}
+  .opt.active{border-color:var(--accent)}
+  .opt-name{display:block;text-align:center;font-size:.7rem;color:var(--muted);margin-top:.2rem;max-width:48px;line-height:1.2;word-break:break-word}
+  .opt-wrap{display:flex;flex-direction:column;align-items:center}
+  .lengths{display:flex;gap:.4rem;flex-wrap:wrap}
+  .lengths button{flex:1;min-width:60px;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.9rem}
+  .lengths button.active{background:var(--ink);color:white;border-color:var(--ink)}
+  .cta{background:var(--accent);color:white;padding:.9rem;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;width:100%}
+  .cta:hover{filter:brightness(0.95)}
+  .tooltip{position:absolute;background:var(--ink);color:white;padding:.3rem .6rem;border-radius:4px;font-size:.75rem;pointer-events:none;opacity:0;transition:opacity .1s;z-index:10}
+  .tooltip.show{opacity:1}
+  .pattern-info{font-size:.8rem;color:var(--muted);background:var(--bg);padding:.6rem;border-radius:6px;margin-top:.6rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V1 — Photostrand <span style="color:var(--muted);font-weight:400">/ zákaznický pohled</span></h1>
+  <a href="/experiment/">← zpět na rozcestník</a>
+</div>
+
+<div class="layout">
+
+  {# ── STAGE: fotorealistický oblouk náramku ── #}
+  <div class="stage">
+    <div class="price" id="price">— Kč</div>
+    <svg id="strand" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
+      <defs id="defs"></defs>
+      <g id="thread"></g>
+      <g id="beads"></g>
+    </svg>
+    <div class="stage-controls">
+      <button onclick="rotate(-10)">↺ doleva</button>
+      <button onclick="rotate(0,true)">⟲ reset</button>
+      <button onclick="rotate(10)">↻ doprava</button>
+      <button onclick="toggleZoom()" id="zoomBtn">🔍 přiblížit</button>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  {# ── PRAVÝ SIDEBAR: kategorie výběru ── #}
+  <aside>
+
+    <div class="dim">
+      <h3>Délka náramku</h3>
+      <div class="lengths" id="lengths"></div>
+    </div>
+
+    <div class="dim">
+      <h3>Hlavní korálky 6 mm</h3>
+      <div class="options" id="opts-main"></div>
+    </div>
+
+    <div class="dim">
+      <h3>Akcentové korálky 8 mm</h3>
+      <div class="options" id="opts-accent"></div>
+    </div>
+
+    <div class="dim">
+      <h3>Rozdělovač</h3>
+      <div class="options" id="opts-sep"></div>
+    </div>
+
+    <button class="cta">Přidat do košíku</button>
+
+    <div class="pattern-info">
+      <strong>Vzorec:</strong> {{ default_pattern_v1|length }} pozic — admin definoval rozložení,
+      vy měníte jen barvy.
+    </div>
+
+  </aside>
+
+</div>
+
+<script>
+const BEADS_6MM = {{ beads_6mm|tojson }};
+const BEADS_8MM = {{ beads_8mm|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+const LENGTHS = {{ lengths|tojson }};
+const PATTERN = {{ default_pattern_v1|tojson }};
+const BASE_PRICE = 460;
+
+// Aktuální výběr
+const sel = {
+  main: BEADS_6MM[0],
+  accent: BEADS_8MM[0],
+  sep: SEPARATORS[0],
+  length: LENGTHS[0],
+};
+let rotation = 0;
+let zoomed = false;
+
+// ── Render výběrových panelů ─────────────────────────────────────
+function renderOptions(containerId, list, currentSlug, role) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  list.forEach(b => {
+    const wrap = document.createElement('div');
+    wrap.className = 'opt-wrap';
+    const btn = document.createElement('button');
+    btn.className = 'opt' + (b.slug === currentSlug ? ' active' : '');
+    btn.innerHTML = `<img src="${b.image}" alt="${b.name}">`;
+    btn.title = b.name + (b.price ? ` (+${b.price} Kč)` : '');
+    btn.onclick = () => {
+      sel[role] = b;
+      renderAll();
+    };
+    wrap.appendChild(btn);
+    const name = document.createElement('span');
+    name.className = 'opt-name';
+    name.textContent = b.name;
+    wrap.appendChild(name);
+    c.appendChild(wrap);
+  });
+}
+
+function renderLengths() {
+  const c = document.getElementById('lengths');
+  c.innerHTML = '';
+  LENGTHS.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = sel.length.cm === l.cm ? 'active' : '';
+    btn.textContent = l.cm + ' cm';
+    btn.onclick = () => { sel.length = l; renderAll(); };
+    c.appendChild(btn);
+  });
+}
+
+// ── Render náramku jako otevřený kruh ────────────────────────────
+function renderStrand() {
+  const beads = document.getElementById('beads');
+  const thread = document.getElementById('thread');
+  const defs = document.getElementById('defs');
+  beads.innerHTML = '';
+  thread.innerHTML = '';
+  defs.innerHTML = '';
+
+  // Center
+  const cx = 300, cy = 270, R = 180;
+  // Otevřený kruh: 270° pokrytí, start vlevo dole, konec vpravo dole
+  const startDeg = 135, endDeg = 405; // → 270° celkem
+  const totalBeads = PATTERN.length;
+  // Aplikuj rotaci
+  const sDeg = startDeg + rotation;
+  const eDeg = endDeg + rotation;
+
+  // Vlasec/řetízek
+  const tStart = polar(cx, cy, R, sDeg);
+  const tEnd = polar(cx, cy, R, eDeg);
+  const largeArc = (eDeg - sDeg) > 180 ? 1 : 0;
+  thread.innerHTML = `<path d="M ${tStart.x} ${tStart.y} A ${R} ${R} 0 ${largeArc} 1 ${tEnd.x} ${tEnd.y}"
+    stroke="#bbb" stroke-width="1.5" stroke-dasharray="5 3" fill="none"/>`;
+
+  // Pro každou pozici ve vzorci
+  PATTERN.forEach((role, i) => {
+    const t = i / (totalBeads - 1);
+    const deg = sDeg + t * (eDeg - sDeg);
+    const p = polar(cx, cy, R, deg);
+
+    let bead, radius;
+    if (role === 'main')   { bead = sel.main;   radius = 18; }
+    if (role === 'accent') { bead = sel.accent; radius = 24; }
+    if (role === 'sep') {
+      bead = sel.sep;
+      radius = sel.sep.type === 'spacer' ? 8 : 5;
+    }
+
+    if (role === 'sep' && sel.sep.type === 'spacer') {
+      // Spacer = obdélník otočený tečně k oblouku
+      const tangentDeg = deg + 90;
+      const w = 22, h = 10;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg','g');
+      rect.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${tangentDeg})`);
+      rect.innerHTML = `<image href="${bead.image}" x="${-w/2}" y="${-h/2}" width="${w}" height="${h}"
+                              preserveAspectRatio="xMidYMid slice"/>`;
+      rect.dataset.name = bead.name;
+      rect.style.cursor = 'pointer';
+      attachTooltip(rect, bead.name);
+      beads.appendChild(rect);
+    } else {
+      // Kruhový korálek s fotkou
+      const clipId = `clip-${i}`;
+      defs.innerHTML += `<clipPath id="${clipId}"><circle cx="${p.x}" cy="${p.y}" r="${radius}"/></clipPath>`;
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.innerHTML = `
+        <image href="${bead.image}" x="${p.x - radius}" y="${p.y - radius}"
+               width="${radius*2}" height="${radius*2}"
+               clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid slice"/>
+        <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="none"
+                stroke="rgba(0,0,0,0.18)" stroke-width="1"/>`;
+      g.style.cursor = 'pointer';
+      attachTooltip(g, bead.name);
+      beads.appendChild(g);
+    }
+  });
+
+  // Aplikuj zoom
+  const svg = document.getElementById('strand');
+  if (zoomed) {
+    svg.setAttribute('viewBox', '180 130 240 220');
+  } else {
+    svg.setAttribute('viewBox', '0 0 600 500');
+  }
+}
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function attachTooltip(el, name) {
+  el.addEventListener('mousemove', (e) => {
+    const tt = document.getElementById('tooltip');
+    tt.textContent = name;
+    tt.classList.add('show');
+    const stage = document.querySelector('.stage').getBoundingClientRect();
+    tt.style.left = (e.clientX - stage.left + 10) + 'px';
+    tt.style.top = (e.clientY - stage.top - 28) + 'px';
+  });
+  el.addEventListener('mouseleave', () => {
+    document.getElementById('tooltip').classList.remove('show');
+  });
+}
+
+// ── Cena ─────────────────────────────────────────────────────────
+function updatePrice() {
+  let p = BASE_PRICE + sel.length.price;
+  // Cena korálků se počítá podle jejich počtu ve vzorci
+  PATTERN.forEach(role => {
+    if (role === 'main')   p += sel.main.price;
+    if (role === 'accent') p += sel.accent.price;
+    if (role === 'sep')    p += sel.sep.price;
+  });
+  document.getElementById('price').textContent = Math.round(p).toLocaleString('cs-CZ') + ' Kč';
+}
+
+// ── Rotation / zoom ──────────────────────────────────────────────
+function rotate(delta, reset) {
+  if (reset) rotation = 0;
+  else rotation += delta;
+  renderStrand();
+}
+function toggleZoom() {
+  zoomed = !zoomed;
+  document.getElementById('zoomBtn').textContent = zoomed ? '🔍 oddálit' : '🔍 přiblížit';
+  renderStrand();
+}
+
+function renderAll() {
+  renderOptions('opts-main',   BEADS_6MM,   sel.main.slug,   'main');
+  renderOptions('opts-accent', BEADS_8MM,   sel.accent.slug, 'accent');
+  renderOptions('opts-sep',    SEPARATORS,  sel.sep.slug,    'sep');
+  renderLengths();
+  renderStrand();
+  updatePrice();
+}
+
+renderAll();
+</script>
+</body>
+</html>

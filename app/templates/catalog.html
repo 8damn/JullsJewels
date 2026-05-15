@@ -5,8 +5,8 @@
 <div class="container section--sm">
   <div class="page-header" style="margin-bottom:2rem">
     <h1>{{ t("catalog.title") }}</h1>
-    {% if selected_category or selected_tags %}
-    <a href="/catalog" class="btn btn--outline btn--sm">✕ Zrušit filtry</a>
+    {% if selected_category or selected_tags or selected_opts or price_min or price_max %}
+    <a href="/catalog" class="btn btn--outline btn--sm">✕ {{ 'Zrušit filtry' if lang == 'cs' else 'Clear filters' }}</a>
     {% endif %}
   </div>
 
@@ -16,6 +16,7 @@
     <aside class="filter-sidebar">
       <form method="get" action="/catalog" id="filter-form">
 
+        {# Kategorie #}
         <h3>{{ 'Kategorie' if lang == 'cs' else 'Category' }}</h3>
         <label class="filter-check">
           <input type="radio" name="category" value=""
@@ -32,6 +33,41 @@
         </label>
         {% endfor %}
 
+        {# Cena #}
+        <h3>{{ 'Cena (Kč)' if lang == 'cs' else 'Price (CZK)' }}</h3>
+        <div class="psd" id="psd" data-max="{{ catalog_max }}">
+          <div class="psd__track"></div>
+          <div class="psd__fill" id="psd-fill"></div>
+          <input type="range" class="psd__thumb" id="ps-lo" min="0" max="{{ catalog_max }}" step="10">
+          <input type="range" class="psd__thumb" id="ps-hi" min="0" max="{{ catalog_max }}" step="10">
+        </div>
+        <div class="price-range">
+          <input type="number" name="price_min" id="pin-lo"
+                 value="{{ price_min|int if price_min else '' }}"
+                 placeholder="{{ 'Od' if lang == 'cs' else 'From' }}" min="0" step="10">
+          <span>—</span>
+          <input type="number" name="price_max" id="pin-hi"
+                 value="{{ price_max|int if price_max else '' }}"
+                 placeholder="{{ 'Do' if lang == 'cs' else 'To' }}" min="0" step="10">
+          <button type="submit" class="btn btn--outline btn--sm" style="padding:.3rem .6rem">→</button>
+        </div>
+
+        {# Atributy #}
+        {% for attr in all_attributes %}
+        {% if attr.options %}
+        <h3>{{ attr.name_cs if lang == 'cs' else attr.name_en }}</h3>
+        {% for opt in attr.options %}
+        <label class="filter-check">
+          <input type="checkbox" name="opts" value="{{ opt.id }}"
+                 {{ 'checked' if opt.id in selected_opts }}
+                 onchange="this.form.submit()">
+          {{ opt.value_cs if lang == 'cs' else opt.value_en }}
+        </label>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+
+        {# Tagy #}
         {% if all_tags %}
         <h3>{{ 'Tagy' if lang == 'cs' else 'Tags' }}</h3>
         {% for tag in all_tags %}
@@ -68,4 +104,47 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const lo   = document.getElementById('ps-lo');
+  const hi   = document.getElementById('ps-hi');
+  const inLo = document.getElementById('pin-lo');
+  const inHi = document.getElementById('pin-hi');
+  const fill = document.getElementById('psd-fill');
+  if (!lo || !hi) return;
+
+  const MAX = parseInt(document.getElementById('psd').dataset.max) || 10000;
+
+  lo.value = inLo.value || 0;
+  hi.value = inHi.value || MAX;
+
+  function updateFill() {
+    const pct = v => (parseInt(v) / MAX) * 100;
+    fill.style.left  = pct(lo.value) + '%';
+    fill.style.width = Math.max(0, pct(hi.value) - pct(lo.value)) + '%';
+  }
+
+  lo.addEventListener('input', () => {
+    if (+lo.value >= +hi.value) lo.value = +hi.value - 10;
+    inLo.value = +lo.value > 0 ? lo.value : '';
+    updateFill();
+  });
+  hi.addEventListener('input', () => {
+    if (+hi.value <= +lo.value) hi.value = +lo.value + 10;
+    inHi.value = +hi.value < MAX ? hi.value : '';
+    updateFill();
+  });
+
+  lo.addEventListener('change', () => document.getElementById('filter-form').submit());
+  hi.addEventListener('change', () => document.getElementById('filter-form').submit());
+
+  inLo.addEventListener('input', () => { lo.value = inLo.value || 0;   updateFill(); });
+  inHi.addEventListener('input', () => { hi.value = inHi.value || MAX; updateFill(); });
+
+  updateFill();
+})();
+</script>
 {% endblock %}

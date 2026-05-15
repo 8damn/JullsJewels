@@ -7,14 +7,56 @@ Struktura session["cart"]:
   {"type": "design",   "design_id": 5,                    "qty": 1},
 ]
 """
+from decimal import Decimal
 from typing import Optional
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.models import CustomDesign, Product, ProductVariant
+from app.models import ConfiguratorType, CustomDesign, Modifier, Product, ProductVariant
 
 CART_KEY = "cart"
+
+
+def calculate_design_price(
+    db: Session,
+    configurator_type_id: int,
+    configuration: dict,
+) -> float:
+    """
+    Server-side výpočet ceny custom designu.
+    NIKDY nepřijímat cenu od klienta — vždy spočítat zde.
+
+    configuration: {dimension_id: modifier_id, ...}
+    """
+    ctype = db.get(ConfiguratorType, configurator_type_id)
+    if not ctype or not ctype.is_active:
+        raise HTTPException(400, "Neplatný typ konfigurátoru")
+
+    # Validní dimension_ids pro tento configurator_type
+    valid_dimension_ids = {d.id for d in ctype.dimensions}
+
+    total = Decimal(str(ctype.base_price))
+
+    for dim_id_raw, mod_id_raw in configuration.items():
+        try:
+            dim_id = int(dim_id_raw)
+            mod_id = int(mod_id_raw)
+        except (ValueError, TypeError):
+            raise HTTPException(400, "Neplatný formát konfigurace")
+
+        # Bezpečnostní check: dimension musí patřit tomuto configurator_type
+        if dim_id not in valid_dimension_ids:
+            raise HTTPException(400, f"Dimenze {dim_id} nepatří k tomuto konfigurátoru")
+
+        # Modifier musí existovat A patřit této dimenzi
+        modifier = db.get(Modifier, mod_id)
+        if not modifier or modifier.dimension_id != dim_id:
+            raise HTTPException(400, f"Modifikátor {mod_id} nepatří k dimenzi {dim_id}")
+
+        total += Decimal(str(modifier.price_modifier))
+
+    return float(round(total, 2))
 
 
 def get_cart(request: Request) -> list[dict]:
@@ -25,11 +67,17 @@ def _save_cart(request: Request, cart: list[dict]) -> None:
     request.session[CART_KEY] = cart
 
 
+_QTY_MAX = 99
+
+
 def add_product(request: Request, product_id: int, qty: int = 1, variant_id: Optional[int] = None) -> None:
+    if qty < 1 or qty > _QTY_MAX:
+        raise HTTPException(400, f"Množství musí být 1–{_QTY_MAX}")
     cart = get_cart(request)
     for item in cart:
         if item["type"] == "product" and item["product_id"] == product_id and item.get("variant_id") == variant_id:
-            item["qty"] += qty
+            new_qty = item["qty"] + qty
+            item["qty"] = min(new_qty, _QTY_MAX)  # cap na maximum
             _save_cart(request, cart)
             return
     cart.append({"type": "product", "product_id": product_id, "variant_id": variant_id, "qty": qty})

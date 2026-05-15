@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Cookie, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Cookie, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from app.csrf import csrf_protect
 from app.database import get_db
 from app.jinja import templates
 from app.models import (
+    Attribute, AttributeOption,
     BlogPost, Category, ConfiguratorDimension, ConfiguratorType,
     FulfillmentStatus, Modifier, Order, PaymentStatus,
     Product, ProductImage, ProductVariant, Tag, User, UserRole,
@@ -26,12 +27,28 @@ async def _require_admin(
     db: Session = Depends(get_db),
     access_token: Optional[str] = Cookie(default=None),
 ) -> User:
+    from fastapi.responses import RedirectResponse as _Redirect
     payload = decode_access_token(access_token) if access_token else None
-    user = db.get(User, int(payload["sub"])) if payload else None
+    # Odmítnout refresh tokeny — smí se použít jen access tokeny
+    if not payload or payload.get("type") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": "/auth/login"},
+        )
+    try:
+        user = db.get(User, int(payload["sub"]))
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": "/auth/login"},
+        )
     if not user or not user.is_active:
-        raise HTTPException(302, headers={"Location": "/auth/login"})
+        raise HTTPException(
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": "/auth/login"},
+        )
     if user.role != UserRole.admin:
-        raise HTTPException(403, detail="Admin only")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
     return user
 
 
@@ -86,11 +103,13 @@ async def product_new_form(
 ):
     categories = db.query(Category).all()
     all_tags = db.query(Tag).order_by(Tag.name_cs).all()
+    all_attributes = db.query(Attribute).order_by(Attribute.name_cs).all()
     return templates.TemplateResponse("admin/products/form.html", {
         **_ctx(request, current_user),
         "product": None,
         "categories": categories,
         "all_tags": all_tags,
+        "all_attributes": all_attributes,
     })
 
 
@@ -107,6 +126,8 @@ async def product_new(
     description_cs: Optional[str] = Form(default=None),
     description_en: Optional[str] = Form(default=None),
     is_active: Optional[str] = Form(default=None),
+    tag_ids: List[str] = Form(default=[]),
+    opt_ids: List[str] = Form(default=[]),
 ):
     cat_id = int(category_id) if category_id else None
     product = Product(
@@ -120,6 +141,9 @@ async def product_new(
         is_active=is_active is not None,
     )
     db.add(product)
+    db.flush()
+    product.tags = db.query(Tag).filter(Tag.id.in_([int(x) for x in tag_ids])).all() if tag_ids else []
+    product.attribute_options = db.query(AttributeOption).filter(AttributeOption.id.in_([int(x) for x in opt_ids])).all() if opt_ids else []
     db.commit()
     db.refresh(product)
     flash(request, "Produkt byl vytvořen.")
@@ -138,11 +162,13 @@ async def product_edit_form(
         raise HTTPException(404)
     categories = db.query(Category).all()
     all_tags = db.query(Tag).order_by(Tag.name_cs).all()
+    all_attributes = db.query(Attribute).order_by(Attribute.name_cs).all()
     return templates.TemplateResponse("admin/products/form.html", {
         **_ctx(request, current_user),
         "product": product,
         "categories": categories,
         "all_tags": all_tags,
+        "all_attributes": all_attributes,
     })
 
 
@@ -165,6 +191,8 @@ async def product_edit(
     v_name_en: Optional[str] = Form(default=None),
     v_price_modifier: float = Form(default=0),
     v_stock: int = Form(default=0),
+    tag_ids: List[str] = Form(default=[]),
+    opt_ids: List[str] = Form(default=[]),
 ):
     product = db.get(Product, product_id)
     if not product:
@@ -195,9 +223,8 @@ async def product_edit(
         )
         db.add(variant)
 
-    form_data = await request.form()
-    tag_ids = [int(v) for v in form_data.getlist("tag_ids")]
-    product.tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all() if tag_ids else []
+    product.tags = db.query(Tag).filter(Tag.id.in_([int(x) for x in tag_ids])).all() if tag_ids else []
+    product.attribute_options = db.query(AttributeOption).filter(AttributeOption.id.in_([int(x) for x in opt_ids])).all() if opt_ids else []
 
     db.commit()
     flash(request, "Produkt byl uložen.")
@@ -580,6 +607,23 @@ async def configurator_type_add(
     return RedirectResponse("/admin/configurator", status_code=303)
 
 
+@router.post("/configurator/types/{type_id}/set-layout", dependencies=[Depends(csrf_protect)])
+async def configurator_type_set_layout(
+    type_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+    layout_mode: str = Form(...),
+):
+    ct = db.get(ConfiguratorType, type_id)
+    if not ct:
+        raise HTTPException(404)
+    if layout_mode in ("layered", "bead_chain"):
+        ct.layout_mode = layout_mode
+        db.commit()
+    return RedirectResponse("/admin/configurator", status_code=303)
+
+
 @router.post("/configurator/types/{type_id}/toggle", dependencies=[Depends(csrf_protect)])
 async def configurator_type_toggle(
     type_id: int,
@@ -663,6 +707,8 @@ async def configurator_modifier_add(
     name_en: str = Form(...),
     price_modifier: float = Form(default=0),
     is_default: Optional[str] = Form(default=None),
+    color_hex: Optional[str] = Form(default=None),
+    bead_count: Optional[int] = Form(default=None),
 ):
     mod = Modifier(
         dimension_id=dimension_id,
@@ -670,6 +716,8 @@ async def configurator_modifier_add(
         name_en=name_en,
         price_modifier=price_modifier,
         is_default=is_default is not None,
+        color_hex=color_hex or None,
+        bead_count=bead_count,
     )
     db.add(mod)
     db.commit()
@@ -702,6 +750,8 @@ async def configurator_modifier_edit(
     name_en: str = Form(...),
     price_modifier: float = Form(default=0),
     is_default: Optional[str] = Form(default=None),
+    color_hex: Optional[str] = Form(default=None),
+    bead_count: Optional[int] = Form(default=None),
     image: Optional[UploadFile] = File(default=None),
 ):
     mod = db.get(Modifier, mod_id)
@@ -711,6 +761,8 @@ async def configurator_modifier_edit(
     mod.name_en = name_en
     mod.price_modifier = price_modifier
     mod.is_default = is_default is not None
+    mod.color_hex = color_hex or None
+    mod.bead_count = bead_count
     if image and image.filename:
         mod.image_asset_path = await save_image(image)
     db.commit()
@@ -836,6 +888,88 @@ async def tag_delete(
     db.commit()
     flash(request, "Tag smazán.", "warning")
     return RedirectResponse("/admin/tags", status_code=303)
+
+
+# ── Atributy ──────────────────────────────────────────────────
+
+@router.get("/attributes")
+async def attributes_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    attributes = db.query(Attribute).order_by(Attribute.name_cs).all()
+    return templates.TemplateResponse("admin/attributes.html", {
+        **_ctx(request, current_user),
+        "attributes": attributes,
+        "active": "attributes",
+    })
+
+
+@router.post("/attributes/add", dependencies=[Depends(csrf_protect)])
+async def attribute_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+    name_cs: str = Form(...),
+    name_en: str = Form(...),
+    slug: str = Form(...),
+):
+    attr = Attribute(name_cs=name_cs, name_en=name_en, slug=slug)
+    db.add(attr)
+    db.commit()
+    flash(request, "Atribut přidán.")
+    return RedirectResponse("/admin/attributes", status_code=303)
+
+
+@router.post("/attributes/{attr_id}/delete", dependencies=[Depends(csrf_protect)])
+async def attribute_delete(
+    attr_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    attr = db.get(Attribute, attr_id)
+    if not attr:
+        raise HTTPException(404)
+    db.delete(attr)
+    db.commit()
+    flash(request, "Atribut smazán.", "warning")
+    return RedirectResponse("/admin/attributes", status_code=303)
+
+
+@router.post("/attributes/{attr_id}/options/add", dependencies=[Depends(csrf_protect)])
+async def attribute_option_add(
+    attr_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+    value_cs: str = Form(...),
+    value_en: str = Form(...),
+    slug: str = Form(...),
+):
+    attr = db.get(Attribute, attr_id)
+    if not attr:
+        raise HTTPException(404)
+    opt = AttributeOption(attribute_id=attr_id, value_cs=value_cs, value_en=value_en, slug=slug)
+    db.add(opt)
+    db.commit()
+    return RedirectResponse("/admin/attributes", status_code=303)
+
+
+@router.post("/attribute-options/{opt_id}/delete", dependencies=[Depends(csrf_protect)])
+async def attribute_option_delete(
+    opt_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    opt = db.get(AttributeOption, opt_id)
+    if not opt:
+        raise HTTPException(404)
+    db.delete(opt)
+    db.commit()
+    return RedirectResponse("/admin/attributes", status_code=303)
 
 
 # ── Produkty — update tagů ────────────────────────────────────

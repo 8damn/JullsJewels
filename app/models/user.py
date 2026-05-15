@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Text
@@ -25,7 +25,15 @@ class User(Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     shipping_address: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
 
-    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
-    wishlist: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="user")
+    # Brute-force ochrana — počet neúspěšných loginů a čas uzamčení
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", passive_deletes=True)
+    wishlist: Mapped[list["WishlistItem"]] = relationship(
+        "WishlistItem", back_populates="user", cascade="all, delete-orphan",
+    )

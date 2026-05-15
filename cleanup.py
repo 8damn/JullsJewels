@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.database import SessionLocal
 from app.models import (
+    Attribute,
+    AttributeOption,
     BlogPost,
     Category,
     ConfiguratorDimension,
@@ -27,6 +29,7 @@ from app.models import (
     WishlistItem,
 )
 from app.models.tag import product_tags
+from app.models.attribute import product_attribute_options
 
 
 def main():
@@ -73,10 +76,11 @@ def main():
         print("  ✓ Custom designs")
 
         db.execute(product_tags.delete())
+        db.execute(product_attribute_options.delete())
         db.query(ProductImage).delete(synchronize_session=False)
         db.query(ProductVariant).delete(synchronize_session=False)
         db.query(Product).delete(synchronize_session=False)
-        print("  ✓ Produkty (obrázky, varianty, tagy produktů)")
+        print("  ✓ Produkty (obrázky, varianty, tagy, atributy)")
 
         db.query(BlogPost).delete(synchronize_session=False)
         print("  ✓ Blog příspěvky")

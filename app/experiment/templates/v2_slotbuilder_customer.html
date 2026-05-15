@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V2 Slotbuilder — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f5f3ee;--surface:#fff;--ink:#1f2937;--muted:#6b7280;--accent:#4f46e5;--border:#e5e7eb;--radius:10px;
+        --slot-empty:#e5dfd2;--slot-hover:#d4cbb8}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:0;height:calc(100vh - 60px)}
+  @media (max-width:900px){.layout{grid-template-columns:1fr;height:auto}}
+
+  /* ── Levý panel: paleta korálků ── */
+  .palette{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+  .palette-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+  .palette-header h2{margin:0 0 .5rem;font-size:.95rem;font-weight:600}
+  .palette-header p{margin:0;font-size:.78rem;color:var(--muted)}
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+  .tab{flex:1;padding:.7rem;border:none;background:none;cursor:pointer;font-size:.85rem;color:var(--muted);border-bottom:2px solid transparent}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface);font-weight:600}
+  .palette-list{flex:1;overflow-y:auto;padding:1rem}
+  .pl-item{display:flex;align-items:center;gap:.75rem;padding:.5rem;border-radius:8px;cursor:grab;border:1px solid transparent;margin-bottom:.25rem;background:var(--bg)}
+  .pl-item:hover{background:var(--surface);border-color:var(--border)}
+  .pl-item:active{cursor:grabbing}
+  .pl-item.dragging{opacity:0.4}
+  .pl-item img{width:40px;height:40px;border-radius:50%;flex-shrink:0;pointer-events:none}
+  .pl-item .pl-info{flex:1;min-width:0}
+  .pl-item .pl-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl-item .pl-price{font-size:.72rem;color:var(--muted)}
+
+  /* ── Pravý: builder ── */
+  .builder{padding:1.5rem;overflow-y:auto;background:linear-gradient(180deg,var(--bg),var(--surface) 60%)}
+  .builder-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem}
+  .builder-header h2{margin:0;font-size:1.2rem}
+  .price-box{background:var(--ink);color:white;padding:.6rem 1.1rem;border-radius:8px;font-weight:600;font-size:1.05rem}
+  .actions{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem}
+  .actions button{padding:.45rem .85rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--ink)}
+  .actions button:hover{background:var(--bg)}
+  .actions .primary{background:var(--accent);color:white;border-color:var(--accent)}
+  .toggles{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem}
+  .toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;color:var(--ink);background:var(--surface);padding:.4rem .8rem;border-radius:20px;border:1px solid var(--border)}
+  .toggle input{cursor:pointer}
+
+  /* Bracelet preview (curved row of slots) */
+  .preview-area{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .strand-canvas{width:100%;max-width:900px;height:200px;position:relative}
+  .slot{position:absolute;border-radius:50%;background:var(--slot-empty);border:2px dashed transparent;display:flex;align-items:center;justify-content:center;transition:transform .15s,border-color .15s,background .15s;cursor:pointer;overflow:hidden}
+  .slot.empty{border-color:#c0b7a3;background:rgba(255,255,255,0.5)}
+  .slot.empty::before{content:'+';color:#a8a08a;font-size:.9em;font-weight:300}
+  .slot.drag-over{border-color:var(--accent);background:#e0e7ff;transform:scale(1.18)}
+  .slot.spacer-slot{border-radius:6px;background:rgba(255,255,255,0.4)}
+  .slot.spacer-slot.empty::before{content:'·'}
+  .slot img{width:100%;height:100%;object-fit:cover;border-radius:inherit;pointer-events:none}
+  .slot:hover{transform:scale(1.06)}
+  .slot[data-role="main"]{width:44px;height:44px}
+  .slot[data-role="accent"]{width:54px;height:54px;z-index:2}
+  .slot[data-role="sep"]{width:18px;height:18px}
+  .slot[data-role="sep"].spacer-slot{width:24px;height:14px}
+
+  .thread-line{position:absolute;top:50%;left:0;right:0;height:0;border-bottom:1px dashed #c0b7a3;z-index:0}
+
+  .helper{text-align:center;font-size:.85rem;color:var(--muted);margin-top:1rem;font-style:italic}
+  .cta{background:var(--accent);color:white;padding:.85rem 2rem;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:1.5rem;display:block;margin-left:auto;margin-right:auto}
+  .cta:disabled{opacity:0.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V2 — Slotbuilder <span style="color:var(--muted);font-weight:400">/ zákaznický pohled</span></h1>
+  <div>
+    <a href="/experiment/v2/admin">→ admin</a>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── PALETA KORÁLKŮ ── #}
+  <div class="palette">
+    <div class="palette-header">
+      <h2>Paleta korálků</h2>
+      <p>Přetáhni korálek do prázdného slotu →</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="main">6 mm</button>
+      <button class="tab" data-tab="accent">8 mm</button>
+      <button class="tab" data-tab="sep">Rozdělovače</button>
+    </div>
+    <div class="palette-list" id="palette-list"></div>
+  </div>
+
+  {# ── BUILDER ── #}
+  <div class="builder">
+    <div class="builder-header">
+      <h2>Postav si svůj náramek</h2>
+      <div class="price-box" id="price">— Kč</div>
+    </div>
+
+    <div class="actions">
+      <button onclick="randomFill()">🎲 Náhodně vyplnit</button>
+      <button onclick="useTemplate()">📋 Použít vzorec</button>
+      <button onclick="clearAll()">🗑️ Vyčistit</button>
+      <button onclick="changeLength(-2)">– kratší</button>
+      <button onclick="changeLength(2)">+ delší</button>
+    </div>
+
+    <div class="toggles">
+      <label class="toggle">
+        <input type="checkbox" id="sym" checked>
+        Zrcadlit (symetrický náramek)
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="auto-sep" checked>
+        Automaticky vkládat separátory
+      </label>
+    </div>
+
+    <div class="preview-area">
+      <div class="strand-canvas" id="canvas">
+        <div class="thread-line"></div>
+      </div>
+    </div>
+
+    <p class="helper" id="helper">Přetáhni korálek z palety vlevo. Symetrie zrcadlí změny na druhou stranu.</p>
+
+    <button class="cta" id="cta" disabled>Přidat do košíku</button>
+  </div>
+
+</div>
+
+<script>
+const BEADS_6MM = {{ beads_6mm|tojson }};
+const BEADS_8MM = {{ beads_8mm|tojson }};
+const SEPARATORS = {{ separators|tojson }};
+const BASE_PRICE = 460;
+
+// Šablona (admin by ji nastavil; tady default)
+let template = [
+  'main','sep','main','sep','main','sep','accent','sep','accent','sep','accent','sep','main','sep','main','sep','main'
+];
+
+// Stav: pole vybraných korálků (null = prázdno)
+let slots = template.map(() => null);
+
+const ALL = {
+  main: BEADS_6MM,
+  accent: BEADS_8MM,
+  sep: SEPARATORS,
+};
+
+let activeTab = 'main';
+
+// ── Render palety ────────────────────────────────────────────────
+function renderPalette() {
+  const c = document.getElementById('palette-list');
+  c.innerHTML = '';
+  ALL[activeTab].forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'pl-item';
+    div.draggable = true;
+    div.dataset.slug = b.slug;
+    div.dataset.category = activeTab;
+    div.innerHTML = `
+      <img src="${b.image}" alt="${b.name}">
+      <div class="pl-info">
+        <div class="pl-name">${b.name}</div>
+        <div class="pl-price">${b.price > 0 ? '+' + b.price + ' Kč' : 'v ceně'}</div>
+      </div>`;
+    div.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('bead-slug', b.slug);
+      e.dataTransfer.setData('bead-cat', activeTab);
+      div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+    div.addEventListener('click', () => {
+      // Klik (alternativa k drag): aplikuj na první prázdný kompatibilní slot
+      applyToFirstEmpty(activeTab, b.slug);
+    });
+    c.appendChild(div);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    activeTab = t.dataset.tab;
+    renderPalette();
+  };
+});
+
+// ── Render náramku ──────────────────────────────────────────────
+function renderStrand() {
+  const canvas = document.getElementById('canvas');
+  // Odstraň staré sloty (ne thread-line)
+  canvas.querySelectorAll('.slot').forEach(s => s.remove());
+
+  const cw = canvas.clientWidth || 800;
+  const ch = 200;
+  const n = template.length;
+  if (n === 0) return;
+
+  // Mírný oblouk (jen pár pixelů vychýlení)
+  const padding = 40;
+  const usableW = cw - 2 * padding;
+  const stepX = usableW / Math.max(n - 1, 1);
+  const arcDepth = 16; // jak silně se prohýbá
+
+  for (let i = 0; i < n; i++) {
+    const role = template[i];
+    const bead = slots[i];
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    // Parabola: y = arcDepth * (1 - 4*(t-0.5)^2)  → maximum uprostřed, klesá ke krajům
+    const yOffset = -arcDepth * (1 - 4 * Math.pow(t - 0.5, 2));
+    const x = padding + i * stepX;
+    const y = ch / 2 + yOffset;
+
+    const slot = document.createElement('div');
+    slot.className = 'slot' + (bead ? '' : ' empty');
+    if (role === 'sep' && bead && bead.type === 'spacer') {
+      slot.classList.add('spacer-slot');
+    } else if (role === 'sep' && !bead) {
+      slot.classList.add('spacer-slot');
+    }
+    slot.dataset.role = role;
+    slot.dataset.idx = i;
+    slot.style.left = (x - (role === 'main' ? 22 : role === 'accent' ? 27 : 9)) + 'px';
+    slot.style.top  = (y - (role === 'main' ? 22 : role === 'accent' ? 27 : (role === 'sep' && bead && bead.type === 'spacer' ? 7 : 9))) + 'px';
+
+    if (bead) {
+      slot.innerHTML = `<img src="${bead.image}" alt="${bead.name}" title="${bead.name}">`;
+    }
+
+    // Drag-drop target
+    slot.addEventListener('dragover', (e) => {
+      const cat = e.dataTransfer?.types.includes('bead-cat');
+      e.preventDefault();
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', (e) => {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      const slug = e.dataTransfer.getData('bead-slug');
+      const cat = e.dataTransfer.getData('bead-cat');
+      placeBead(i, cat, slug);
+    });
+    slot.addEventListener('click', () => {
+      if (bead) {
+        // Klik na obsazený slot → vymaž ho
+        slots[i] = null;
+        if (document.getElementById('sym').checked) {
+          const mirror = template.length - 1 - i;
+          if (mirror !== i) slots[mirror] = null;
+        }
+        renderAll();
+      }
+    });
+
+    canvas.appendChild(slot);
+  }
+}
+
+function placeBead(idx, category, slug) {
+  if (!category || !ALL[category]) return;
+  const bead = ALL[category].find(b => b.slug === slug);
+  if (!bead) return;
+  const role = template[idx];
+
+  // Validace: kategorie musí odpovídat roli slotu
+  if (role !== category) {
+    flashHelper(`Tento slot je pro "${roleLabel(role)}", ne pro "${roleLabel(category)}".`);
+    return;
+  }
+
+  slots[idx] = bead;
+  if (document.getElementById('sym').checked) {
+    const mirror = template.length - 1 - idx;
+    if (mirror !== idx) slots[mirror] = bead;
+  }
+  renderAll();
+}
+
+function applyToFirstEmpty(category, slug) {
+  // Pokud je symetrie zapnutá, aplikuj zleva
+  for (let i = 0; i < template.length; i++) {
+    if (template[i] === category && !slots[i]) {
+      placeBead(i, category, slug);
+      return;
+    }
+  }
+  flashHelper('Žádný prázdný slot pro tuto kategorii — odeber nějaký jiný.');
+}
+
+function roleLabel(r) { return {main:'6 mm hlavní', accent:'8 mm akcent', sep:'rozdělovač'}[r] || r; }
+
+// ── Akce ────────────────────────────────────────────────────────
+function randomFill() {
+  for (let i = 0; i < template.length; i++) {
+    const role = template[i];
+    const pool = ALL[role];
+    slots[i] = pool[Math.floor(Math.random() * pool.length)];
+  }
+  renderAll();
+}
+
+function useTemplate() {
+  // Aplikuj výchozí kombinaci (každá role = první volba)
+  for (let i = 0; i < template.length; i++) {
+    slots[i] = ALL[template[i]][0];
+  }
+  renderAll();
+}
+
+function clearAll() {
+  slots = template.map(() => null);
+  renderAll();
+}
+
+function changeLength(delta) {
+  const newLen = Math.max(13, Math.min(25, template.length + delta));
+  // Symetricky přidat/odebrat na obou stranách
+  if (delta > 0) {
+    // Přidat na začátek "main" a "sep" a na konec totéž
+    const newSlots = [...slots];
+    const newTpl = [...template];
+    newTpl.unshift('main');
+    newSlots.unshift(null);
+    newTpl.push('main');
+    newSlots.push(null);
+    if (newTpl.length <= 25) { template = newTpl; slots = newSlots; }
+  } else {
+    if (template.length > 13) {
+      template = template.slice(1, -1);
+      slots = slots.slice(1, -1);
+    }
+  }
+  renderAll();
+}
+
+function flashHelper(msg) {
+  const h = document.getElementById('helper');
+  const original = h.textContent;
+  h.textContent = '⚠ ' + msg;
+  h.style.color = '#dc2626';
+  setTimeout(() => { h.textContent = original; h.style.color = ''; }, 2200);
+}
+
+// ── Cena & CTA ──────────────────────────────────────────────────
+function updatePrice() {
+  let p = BASE_PRICE;
+  slots.forEach(b => { if (b) p += (b.price || 0); });
+  document.getElementById('price').textContent = Math.round(p).toLocaleString('cs-CZ') + ' Kč';
+
+  const filled = slots.filter(x => x).length;
+  const cta = document.getElementById('cta');
+  cta.disabled = filled < template.length;
+  cta.textContent = cta.disabled
+    ? `Vyplň všechny sloty (${filled}/${template.length})`
+    : 'Přidat do košíku — ' + Math.round(p) + ' Kč';
+}
+
+function renderAll() {
+  renderPalette();
+  renderStrand();
+  updatePrice();
+}
+
+window.addEventListener('resize', renderStrand);
+renderAll();
+</script>
+</body>
+</html>

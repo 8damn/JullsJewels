@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+{% block title %}Atributy{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Atributy produktů</h1>
+</div>
+
+<div class="admin-card" style="max-width:560px;margin-bottom:1.5rem">
+  <h2>Přidat atribut</h2>
+  <form method="post" action="/admin/attributes/add" class="form-stack">
+    {{ csrf_input(csrf_token) }}
+    <div class="form-row">
+      <div class="form-group"><label>Název CS</label><input type="text" name="name_cs" required id="attr-name-cs"></div>
+      <div class="form-group"><label>Název EN</label><input type="text" name="name_en" required></div>
+    </div>
+    <div class="form-group">
+      <label>Slug <span class="muted" style="font-weight:400;font-size:.8rem">— generuje se automaticky</span></label>
+      <input type="text" name="slug" required id="attr-slug" placeholder="barva">
+    </div>
+    <button type="submit" class="btn btn--primary btn--sm">Přidat atribut</button>
+  </form>
+</div>
+
+{% for attr in attributes %}
+<div class="admin-card" style="margin-bottom:1.25rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div>
+      <strong>{{ attr.name_cs }}</strong>
+      <span class="muted"> / {{ attr.name_en }}</span>
+      <code style="font-size:.75rem;margin-left:.5rem">{{ attr.slug }}</code>
+    </div>
+    <form method="post" action="/admin/attributes/{{ attr.id }}/delete"
+          onsubmit="return confirm('Smazat atribut a všechny jeho hodnoty?')">
+      {{ csrf_input(csrf_token) }}
+      <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+    </form>
+  </div>
+
+  {# Existující hodnoty #}
+  {% if attr.options %}
+  <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem">
+    {% for opt in attr.options %}
+    <div style="display:flex;align-items:center;gap:.25rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:99px;padding:.2rem .6rem .2rem .75rem;font-size:.8rem">
+      <span>{{ opt.value_cs }} / {{ opt.value_en }}</span>
+      <code style="font-size:.7rem;color:var(--text-muted)">{{ opt.slug }}</code>
+      <form method="post" action="/admin/attribute-options/{{ opt.id }}/delete" style="margin:0">
+        {{ csrf_input(csrf_token) }}
+        <button class="btn btn--ghost" style="padding:.1rem .3rem;font-size:.7rem;color:var(--danger)">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted" style="font-size:.8rem;margin-bottom:.75rem">Zatím žádné hodnoty.</p>
+  {% endif %}
+
+  {# Přidat hodnotu #}
+  <details>
+    <summary class="btn btn--outline btn--sm" style="cursor:pointer;display:inline-flex">+ Přidat hodnotu</summary>
+    <form method="post" action="/admin/attributes/{{ attr.id }}/options/add"
+          style="margin-top:.75rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius)">
+      {{ csrf_input(csrf_token) }}
+      <div class="form-row">
+        <div class="form-group"><label>Hodnota CS</label><input type="text" name="value_cs" required class="opt-value-cs-{{ attr.id }}"></div>
+        <div class="form-group"><label>Hodnota EN</label><input type="text" name="value_en" required></div>
+        <div class="form-group"><label>Slug</label><input type="text" name="slug" required class="opt-slug-{{ attr.id }}" placeholder="zlata"></div>
+      </div>
+      <button type="submit" class="btn btn--primary btn--sm">Přidat</button>
+    </form>
+  </details>
+</div>
+{% endfor %}
+
+{% if not attributes %}
+<div class="admin-card" style="text-align:center;color:var(--text-muted);padding:3rem">
+  <p>Zatím žádné atributy. Přidejte první výše.</p>
+  <p style="font-size:.875rem;margin-top:.5rem">Příklady: Barva, Materiál, Kámen, Délka</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function slugify(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+const nameCs = document.getElementById('attr-name-cs');
+const attrSlug = document.getElementById('attr-slug');
+let locked = false;
+if (nameCs && attrSlug) {
+  nameCs.addEventListener('input', () => { if (!locked) attrSlug.value = slugify(nameCs.value); });
+  attrSlug.addEventListener('input', () => { locked = true; });
+}
+
+document.querySelectorAll('details').forEach(details => {
+  const form = details.querySelector('form');
+  if (!form) return;
+  const valueCs = form.querySelector('[name="value_cs"]');
+  const slugInput = form.querySelector('[name="slug"]');
+  if (!valueCs || !slugInput) return;
+  let optLocked = false;
+  valueCs.addEventListener('input', () => { if (!optLocked) slugInput.value = slugify(valueCs.value); });
+  slugInput.addEventListener('input', () => { optLocked = true; });
+  details.addEventListener('toggle', () => { if (details.open) optLocked = false; });
+});
+</script>
+{% endblock %}

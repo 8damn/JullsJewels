@@ -6,10 +6,16 @@
   <a href="/admin/products" class="btn btn--outline btn--sm">← Zpět</a>
 </div>
 
-<form method="post" action="{{ '/admin/products/' + product.id|string + '/edit' if product else '/admin/products/new' }}"
-      enctype="multipart/form-data" class="admin-form" id="product-form">
+{# ═══════════════════════════════════════════════════════════════════
+   Hlavní form — BEZ vnořených formů (delete/replace jsou níže mimo)
+   ═══════════════════════════════════════════════════════════════════ #}
+<form method="post"
+      action="{{ '/admin/products/' + product.id|string + '/edit' if product else '/admin/products/new' }}"
+      enctype="multipart/form-data"
+      id="product-form">
   {{ csrf_input(csrf_token) }}
 
+  {# ── Základní informace ── #}
   <div class="admin-card">
     <h2>Základní informace</h2>
     <div class="form-stack">
@@ -25,9 +31,9 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Slug (URL) <span class="muted" style="font-weight:400;font-size:.8rem">— generuje se automaticky</span></label>
-          <input type="text" name="slug" id="slug-input" required value="{{ product.slug if product else '' }}"
-                 placeholder="zlaty-prsten-rubin">
+          <label>Slug <span class="muted" style="font-weight:400;font-size:.8rem">— generuje se automaticky</span></label>
+          <input type="text" name="slug" id="slug-input" required
+                 value="{{ product.slug if product else '' }}" placeholder="zlaty-prsten-rubin">
         </div>
         <div class="form-group">
           <label>Kategorie</label>
@@ -65,16 +71,16 @@
     </div>
   </div>
 
-  {# ── Tagy ── (vyplní se v další fázi) #}
+  {# ── Tagy ── #}
   {% if all_tags %}
   <div class="admin-card">
     <h2>Tagy</h2>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
       {% for tag in all_tags %}
-      <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.35rem .75rem;border:1px solid var(--border);border-radius:99px;font-size:.875rem;transition:all .15s"
-             class="tag-check-label {{ 'tag-check-label--active' if product and tag in product.tags }}">
+      {% set is_tagged = product and tag in product.tags %}
+      <label class="tag-check-label {{ 'tag-check-label--active' if is_tagged }}">
         <input type="checkbox" name="tag_ids" value="{{ tag.id }}"
-               {{ 'checked' if product and tag in product.tags }}
+               {{ 'checked' if is_tagged }}
                style="position:absolute;opacity:0;pointer-events:none">
         {{ tag.name_cs }}
       </label>
@@ -83,58 +89,46 @@
   </div>
   {% endif %}
 
-  {% if product %}
-  {# ── Fotografie ── #}
+  {# ── Atributy ── #}
+  {% if all_attributes %}
   <div class="admin-card">
-    <h2>Fotografie</h2>
-    <div class="img-grid">
-      {% for img in product.images %}
-      <div class="img-grid__item">
-        <img src="{{ img.image_url }}" alt="">
-        <div class="img-grid__item-actions">
-          <label class="btn btn--outline btn--sm img-replace-label" title="Nahradit obrázek">
-            ↺ Nahradit
-            <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none"
-                   onchange="replaceImage({{ img.id }}, this)">
-          </label>
-          <form method="post" action="/admin/products/{{ product.id }}/image/{{ img.id }}/delete" style="margin:0">
-            {{ csrf_input(csrf_token) }}
-            <button class="btn btn--ghost btn--sm" style="color:var(--danger)" title="Smazat">✕</button>
-          </form>
-        </div>
+    <h2>Atributy</h2>
+    {% for attr in all_attributes %}{% if attr.options %}
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.8rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem">
+        {{ attr.name_cs }}
       </div>
-      {% endfor %}
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+        {% for opt in attr.options %}
+        {% set is_checked = product and opt in product.attribute_options %}
+        <label class="tag-check-label {{ 'tag-check-label--active' if is_checked }}">
+          <input type="checkbox" name="opt_ids" value="{{ opt.id }}"
+                 {{ 'checked' if is_checked }}
+                 style="position:absolute;opacity:0;pointer-events:none">
+          {{ opt.value_cs }}
+        </label>
+        {% endfor %}
+      </div>
     </div>
-    <div class="form-group" style="margin-top:1rem">
-      <label>Přidat fotografie (JPG / PNG / WebP, max 5 MB)</label>
+    {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Přidat fotografie ── #}
+  {% if product %}
+  <div class="admin-card">
+    <h2>Přidat fotografie</h2>
+    <div class="form-group">
+      <label>JPG / PNG / WebP, max 5 MB</label>
       <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp">
     </div>
   </div>
 
-  {# ── Varianty ── #}
+  {# ── Přidat variantu ── #}
   <div class="admin-card">
-    <h2>Varianty</h2>
-    <table class="admin-table" style="margin-bottom:1rem">
-      <thead><tr><th>Název CS</th><th>Název EN</th><th>Příplatek</th><th>Sklad</th><th></th></tr></thead>
-      <tbody>
-        {% for v in product.variants %}
-        <tr>
-          <td>{{ v.name_cs }}</td>
-          <td>{{ v.name_en }}</td>
-          <td>{{ '+' if v.price_modifier > 0 }}{{ v.price_modifier | int }} Kč</td>
-          <td>{{ v.stock }}</td>
-          <td>
-            <form method="post" action="/admin/variants/{{ v.id }}/delete">
-              {{ csrf_input(csrf_token) }}
-              <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <h2>Přidat variantu</h2>
     <details>
-      <summary class="btn btn--outline btn--sm" style="cursor:pointer;display:inline-flex">+ Přidat variantu</summary>
+      <summary class="btn btn--outline btn--sm" style="cursor:pointer;display:inline-flex">+ Nová varianta</summary>
       <div style="margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:var(--radius)">
         <div class="form-row">
           <div class="form-group"><label>Název CS</label><input type="text" name="v_name_cs"></div>
@@ -147,52 +141,101 @@
   </div>
   {% endif %}
 
-  <button type="submit" class="btn btn--primary">{{ 'Uložit změny' if product else 'Vytvořit produkt' }}</button>
-</form>
+</form>{# ← hlavní form se uzavírá ZDE, před jakýmikoli delete formy #}
 
-{# Skrytá forma pro replace obrázku — dynamicky se naplní JS #}
+{# ═══════════════════════════════════════════════════════════════════
+   Sekce MIMO hlavní form — delete/replace formy jsou bezpečné
+   ═══════════════════════════════════════════════════════════════════ #}
+
+{# ── Existující fotografie ── #}
+{% if product and product.images %}
+<div class="admin-card">
+  <h2>Fotografie</h2>
+  <div class="img-grid">
+    {% for img in product.images %}
+    <div class="img-grid__item">
+      <img src="{{ img.image_url }}" alt="">
+      <div class="img-grid__item-actions">
+        <label class="btn btn--outline btn--sm img-replace-label" title="Nahradit obrázek">
+          ↺ Nahradit
+          <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none"
+                 onchange="replaceImage({{ img.id }}, this)">
+        </label>
+        <form method="post" action="/admin/products/{{ product.id }}/image/{{ img.id }}/delete" style="margin:0">
+          {{ csrf_input(csrf_token) }}
+          <button class="btn btn--ghost btn--sm" style="color:var(--danger)">✕</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ── Existující varianty ── #}
+{% if product and product.variants %}
+<div class="admin-card">
+  <h2>Varianty</h2>
+  <table class="admin-table" style="margin-bottom:.5rem">
+    <thead><tr><th>Název CS</th><th>Název EN</th><th>Příplatek</th><th>Sklad</th><th></th></tr></thead>
+    <tbody>
+      {% for v in product.variants %}
+      <tr>
+        <td>{{ v.name_cs }}</td>
+        <td>{{ v.name_en }}</td>
+        <td>{{ '+' if v.price_modifier > 0 }}{{ v.price_modifier | int }} Kč</td>
+        <td>{{ v.stock }}</td>
+        <td>
+          <form method="post" action="/admin/variants/{{ v.id }}/delete">
+            {{ csrf_input(csrf_token) }}
+            <button class="btn btn--ghost btn--sm" style="color:var(--danger)">Smazat</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{# ── Tlačítko uložit — form="product-form" odkazuje na hlavní form výše ── #}
+<button type="submit" form="product-form" class="btn btn--primary" style="margin-bottom:2rem">
+  {{ 'Uložit změny' if product else 'Vytvořit produkt' }}
+</button>
+
+{# Skrytý form pro replace obrázku #}
 <form id="replace-image-form" method="post" enctype="multipart/form-data" style="display:none">
   {{ csrf_input(csrf_token) }}
   <input type="file" name="image" id="replace-image-file">
 </form>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// ── Auto-slug generátor ────────────────────────────────────────
+// ── Auto-slug ──────────────────────────────────────────────────
 const titleInput = document.getElementById('title-cs');
 const slugInput  = document.getElementById('slug-input');
-let slugLocked   = slugInput && slugInput.value.length > 0;
+let slugLocked   = !!(slugInput && slugInput.value.length > 0);
 
 function slugify(str) {
-  return str
-    .toLowerCase()
-    .normalize('NFD')
+  return str.toLowerCase().normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
-
 if (titleInput && slugInput) {
-  titleInput.addEventListener('input', () => {
-    if (!slugLocked) slugInput.value = slugify(titleInput.value);
-  });
-  slugInput.addEventListener('input', () => { slugLocked = true; });
-  // Dvojklik na slug pole reset zámku
-  slugInput.addEventListener('dblclick', () => {
-    slugLocked = false;
-    slugInput.value = slugify(titleInput.value);
-  });
+  titleInput.addEventListener('input', () => { if (!slugLocked) slugInput.value = slugify(titleInput.value); });
+  slugInput.addEventListener('input',  () => { slugLocked = true; });
+  slugInput.addEventListener('dblclick', () => { slugLocked = false; slugInput.value = slugify(titleInput.value); });
 }
 
-// ── Tag checkboxy ─────────────────────────────────────────────
+// ── Tag / atribut checkboxy (pill styl) ───────────────────────
 document.querySelectorAll('.tag-check-label').forEach(label => {
   const cb = label.querySelector('input[type=checkbox]');
-  if (cb && cb.checked) label.classList.add('tag-check-label--active');
+  if (!cb) return;
   label.addEventListener('click', () => {
-    setTimeout(() => {
-      label.classList.toggle('tag-check-label--active', cb.checked);
-    }, 0);
+    setTimeout(() => label.classList.toggle('tag-check-label--active', cb.checked), 0);
   });
 });
 

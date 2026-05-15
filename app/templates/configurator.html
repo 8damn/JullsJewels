@@ -24,63 +24,140 @@
   </div>
 
   {% for ct in configurator_types %}
-  <div class="configurator-layout type-panel" id="type-{{ ct.id }}" style="{{ 'display:grid' if loop.first else 'display:none' }}">
+  <div class="type-panel" id="type-{{ ct.id }}" style="{{ '' if loop.first else 'display:none' }}">
 
-    {# Panel dimenzí #}
-    <div>
-      {% for dim in ct.dimensions %}
-      <div class="dim-group">
-        <p class="dim-group__label">
-          {{ dim.name_cs if lang == 'cs' else dim.name_en }}
-          {% if not dim.is_required %}<span class="muted">({{ 'volitelné' if lang == 'cs' else 'optional' }})</span>{% endif %}
-        </p>
-        <div class="dim-options">
-          {% for mod in dim.modifiers %}
-          <label class="dim-option">
-            <input type="radio"
-                   name="dim_{{ ct.id }}_{{ dim.id }}"
-                   value="{{ mod.id }}"
-                   data-price="{{ mod.price_modifier }}"
-                   data-layer="{{ mod.image_asset_path or '' }}"
-                   data-dim-slug="{{ dim.slug }}"
-                   {{ 'checked' if mod.is_default }}
-                   onchange="updateConfigurator({{ ct.id }})">
-            <span class="dim-option-chip">
-              {{ mod.name_cs if lang == 'cs' else mod.name_en }}
-              {% if mod.price_modifier > 0 %}
-                <span class="muted">+{{ mod.price_modifier | int }} Kč</span>
-              {% endif %}
-            </span>
-          </label>
+    {% if ct.layout_mode == 'bead_chain' %}
+    {# ══════════════════════════════════════════════════════
+       KORÁLKOVÝ ŘETĚZ — SVG vizualizace
+       ══════════════════════════════════════════════════════ #}
+
+    {# Data pro JS: modifikátory jako JSON #}
+    <script>
+    (function() {
+      const typeId = {{ ct.id }};
+      window._bcData = window._bcData || {};
+      window._bcData[typeId] = {
+        basePrice: {{ ct.base_price | float }},
+        dims: [
+          {% for dim in ct.dimensions %}
+          {
+            id: {{ dim.id }},
+            slug: {{ dim.slug | tojson }},
+            nameCs: {{ dim.name_cs | tojson }},
+            nameEn: {{ dim.name_en | tojson }},
+            isRequired: {{ 'true' if dim.is_required else 'false' }},
+            mods: [
+              {% for mod in dim.modifiers %}
+              {
+                id: {{ mod.id }},
+                nameCs: {{ mod.name_cs | tojson }},
+                nameEn: {{ mod.name_en | tojson }},
+                price: {{ mod.price_modifier | float }},
+                colorHex: {{ (mod.color_hex or '#cccccc') | tojson }},
+                imageUrl: {{ (mod.image_asset_path or '') | tojson }},
+                beadCount: {{ mod.bead_count or 'null' }},
+                isDefault: {{ 'true' if mod.is_default else 'false' }},
+              },
+              {% endfor %}
+            ],
+          },
           {% endfor %}
+        ],
+      };
+    })();
+    </script>
+
+    <div class="bc-layout">
+
+      {# SVG Preview #}
+      <div class="bc-preview-wrap">
+        <svg class="bc-svg" id="bc-svg-{{ ct.id }}" viewBox="0 0 600 80" preserveAspectRatio="xMidYMid meet">
+          <g id="bc-beads-{{ ct.id }}"></g>
+        </svg>
+        <p class="configurator-price" id="price-{{ ct.id }}">{{ ct.base_price | price }}</p>
+      </div>
+
+      {# Výběrové panely dimenzí #}
+      <div class="bc-dims" id="bc-dims-{{ ct.id }}">
+        {# generuje JS #}
+      </div>
+
+      {# Zákaznická poznámka + košík #}
+      <div style="margin-top:1.5rem">
+        <div class="form-group">
+          <label>{{ t("configurator.note_label") }}</label>
+          <textarea id="bc-note-{{ ct.id }}" placeholder="{{ t('configurator.note_placeholder') }}"></textarea>
+        </div>
+        <form method="post" action="/configurator/save" id="config-form-{{ ct.id }}">
+          {{ csrf_input(csrf_token) }}
+          <input type="hidden" name="configurator_type_id" value="{{ ct.id }}">
+          <input type="hidden" name="configuration_json" id="config-json-{{ ct.id }}" value="{}">
+          <textarea name="customer_note" style="display:none" id="config-note-hidden-{{ ct.id }}"></textarea>
+          <button type="submit" class="btn btn--accent btn--full" style="margin-top:.75rem">
+            {{ t("configurator.add_to_cart") }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% else %}
+    {# ══════════════════════════════════════════════════════
+       VRSTVENÉ PNG — původní chování
+       ══════════════════════════════════════════════════════ #}
+    <div class="configurator-layout">
+      <div>
+        {% for dim in ct.dimensions %}
+        <div class="dim-group">
+          <p class="dim-group__label">
+            {{ dim.name_cs if lang == 'cs' else dim.name_en }}
+            {% if not dim.is_required %}<span class="muted">({{ 'volitelné' if lang == 'cs' else 'optional' }})</span>{% endif %}
+          </p>
+          <div class="dim-options">
+            {% for mod in dim.modifiers %}
+            <label class="dim-option">
+              <input type="radio"
+                     name="dim_{{ ct.id }}_{{ dim.id }}"
+                     value="{{ mod.id }}"
+                     data-price="{{ mod.price_modifier }}"
+                     data-layer="{{ mod.image_asset_path or '' }}"
+                     data-dim-slug="{{ dim.slug }}"
+                     {{ 'checked' if mod.is_default }}
+                     onchange="updateLayered({{ ct.id }})">
+              <span class="dim-option-chip">
+                {{ mod.name_cs if lang == 'cs' else mod.name_en }}
+                {% if mod.price_modifier > 0 %}
+                  <span class="muted">+{{ mod.price_modifier | int }} Kč</span>
+                {% endif %}
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        <div class="form-group" style="margin-top:.5rem">
+          <label>{{ t("configurator.note_label") }}</label>
+          <textarea class="layered-note" placeholder="{{ t('configurator.note_placeholder') }}"></textarea>
         </div>
       </div>
-      {% endfor %}
 
-      <div class="form-group" style="margin-top:.5rem">
-        <label>{{ t("configurator.note_label") }}</label>
-        <textarea name="customer_note" placeholder="{{ t('configurator.note_placeholder') }}"></textarea>
+      <div class="configurator-preview">
+        <div class="configurator-preview__canvas" id="canvas-{{ ct.id }}">
+          {% for dim in ct.dimensions %}
+          <img src="" alt="" id="layer-{{ ct.id }}-{{ dim.slug }}" style="display:none">
+          {% endfor %}
+        </div>
+        <p class="configurator-price" id="price-{{ ct.id }}">{{ ct.base_price | price }}</p>
+        <form method="post" action="/configurator/save" id="config-form-{{ ct.id }}">
+          {{ csrf_input(csrf_token) }}
+          <input type="hidden" name="configurator_type_id" value="{{ ct.id }}">
+          <input type="hidden" name="configuration_json" id="config-json-{{ ct.id }}" value="{}">
+          <textarea name="customer_note" style="display:none" id="config-note-hidden-{{ ct.id }}"></textarea>
+          <button type="submit" class="btn btn--accent btn--full">{{ t("configurator.add_to_cart") }}</button>
+        </form>
       </div>
     </div>
+    {% endif %}
 
-    {# Preview + cena + přidat do košíku #}
-    <div class="configurator-preview">
-      <div class="configurator-preview__canvas" id="canvas-{{ ct.id }}">
-        {% for dim in ct.dimensions %}
-        <img src="" alt="" id="layer-{{ ct.id }}-{{ dim.slug }}" style="display:none">
-        {% endfor %}
-      </div>
-      <p class="configurator-price" id="price-{{ ct.id }}">{{ ct.base_price | price }}</p>
-
-      <form method="post" action="/configurator/save" id="config-form-{{ ct.id }}">
-        {{ csrf_input(csrf_token) }}
-        <input type="hidden" name="configurator_type_id" value="{{ ct.id }}">
-        <input type="hidden" name="configuration_json" id="config-json-{{ ct.id }}" value="{}">
-        <input type="hidden" name="final_price" id="config-price-{{ ct.id }}" value="{{ ct.base_price }}">
-        <textarea name="customer_note" style="display:none" id="config-note-{{ ct.id }}"></textarea>
-        <button type="submit" class="btn btn--accent btn--full">{{ t("configurator.add_to_cart") }}</button>
-      </form>
-    </div>
   </div>
   {% endfor %}
 </div>
@@ -88,62 +165,348 @@
 
 {% block scripts %}
 <script>
+// Základní ceny pro vrstvený mód
 const basePrices = { {% for ct in configurator_types %}{{ ct.id }}: {{ ct.base_price | float }}{% if not loop.last %}, {% endif %}{% endfor %} };
+
+// ── Společné ───────────────────────────────────────────────────
 
 function selectType(typeId, btn) {
   document.querySelectorAll('.type-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.type-btn').forEach(b => {
-    b.classList.remove('btn--primary');
-    b.classList.add('btn--outline');
+    b.classList.remove('btn--primary'); b.classList.add('btn--outline');
   });
-  document.getElementById('type-' + typeId).style.display = 'grid';
-  btn.classList.add('btn--primary');
-  btn.classList.remove('btn--outline');
-  updateConfigurator(typeId);
+  document.getElementById('type-' + typeId).style.display = '';
+  btn.classList.add('btn--primary'); btn.classList.remove('btn--outline');
+  if (window._bcData && window._bcData[typeId]) {
+    renderBeadChain(typeId);
+  } else {
+    updateLayered(typeId);
+  }
 }
 
-function updateConfigurator(typeId) {
+// ── Vrstvený PNG mód ───────────────────────────────────────────
+
+function updateLayered(typeId) {
   let total = basePrices[typeId] || 0;
   const config = {};
-
-  // Nejdřív skryjeme všechny vrstvy pro tento typ
-  document.querySelectorAll(`#canvas-${typeId} img`).forEach(img => {
-    img.style.display = 'none';
-  });
-
+  document.querySelectorAll(`#canvas-${typeId} img`).forEach(img => img.style.display = 'none');
   document.querySelectorAll(`#type-${typeId} input[type=radio]:checked`).forEach(radio => {
     total += parseFloat(radio.dataset.price) || 0;
-
     const nameParts = radio.name.split('_');
-    const dimId = nameParts[nameParts.length - 1];
-    config[dimId] = parseInt(radio.value);
-
-    // Každá dimenze má vlastní vrstvu pojmenovanou podle slug
-    const dimSlug = radio.dataset.dimSlug;
-    const layerSrc = radio.dataset.layer;
-    const layerImg = document.getElementById(`layer-${typeId}-${dimSlug}`);
-
-    if (layerImg && layerSrc) {
-      layerImg.src = layerSrc;
-      layerImg.style.display = 'block';
+    config[nameParts[nameParts.length - 1]] = parseInt(radio.value);
+    const layerImg = document.getElementById(`layer-${typeId}-${radio.dataset.dimSlug}`);
+    if (layerImg && radio.dataset.layer) {
+      layerImg.src = radio.dataset.layer; layerImg.style.display = 'block';
     }
   });
-
-  document.getElementById('price-' + typeId).textContent =
-    total.toLocaleString('cs-CZ', {maximumFractionDigits: 0}) + ' Kč';
-
-  document.getElementById('config-json-' + typeId).value = JSON.stringify(config);
-  document.getElementById('config-price-' + typeId).value = total.toFixed(2);
-
-  const noteTA = document.querySelector(`#type-${typeId} textarea[name="customer_note"]`);
-  const hiddenNote = document.getElementById('config-note-' + typeId);
-  if (noteTA && hiddenNote) noteTA.oninput = () => hiddenNote.value = noteTA.value;
+  const priceEl = document.getElementById('price-' + typeId);
+  if (priceEl) priceEl.textContent = total.toLocaleString('cs-CZ', {maximumFractionDigits:0}) + ' Kč';
+  const cfgEl = document.getElementById('config-json-' + typeId);
+  if (cfgEl) cfgEl.value = JSON.stringify(config);
+  // Sync poznámky
+  const noteVis = document.querySelector(`#type-${typeId} textarea.layered-note`);
+  const noteHid = document.getElementById('config-note-hidden-' + typeId);
+  if (noteVis && noteHid) noteVis.oninput = () => { noteHid.value = noteVis.value; };
 }
 
-// Init
+// ── Korálkový řetěz mód ────────────────────────────────────────
+
+const SLUG_LENGTH    = ['length', 'delka', 'Length'];
+const SLUG_SEPARATOR = ['separator', 'delic', 'separátor', 'Separator'];
+const SLUG_ACCENT    = ['accent', 'accent-8mm', 'hlavni-8mm', 'Accent'];
+
+function dimRole(slug) {
+  if (SLUG_LENGTH.includes(slug))    return 'length';
+  if (SLUG_SEPARATOR.includes(slug)) return 'separator';
+  if (SLUG_ACCENT.includes(slug))    return 'accent';
+  return 'main';
+}
+
+// Stav výběru: {typeId: {dimId: modId}}
+const _sel = {};
+
+function getSelected(typeId) {
+  return _sel[typeId] || {};
+}
+
+function setSelected(typeId, dimId, modId) {
+  if (!_sel[typeId]) _sel[typeId] = {};
+  _sel[typeId][dimId] = modId;
+}
+
+function renderBeadChain(typeId) {
+  const data = window._bcData[typeId];
+  if (!data) return;
+
+  // Inicializuj výchozí výběr pokud ještě neexistuje
+  if (!_sel[typeId]) {
+    _sel[typeId] = {};
+    data.dims.forEach(dim => {
+      const def = dim.mods.find(m => m.isDefault) || dim.mods[0];
+      if (def) _sel[typeId][dim.id] = def.id;
+    });
+  }
+
+  _renderDimPanels(typeId, data);
+  _renderSVG(typeId, data);
+  _updatePrice(typeId, data);
+  _updateConfigJson(typeId, data);
+  _syncNote(typeId);
+}
+
+function _renderDimPanels(typeId, data) {
+  const container = document.getElementById('bc-dims-' + typeId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  const lang = document.documentElement.lang || 'cs';
+
+  data.dims.forEach(dim => {
+    const role = dimRole(dim.slug);
+    const selectedModId = getSelected(typeId)[dim.id];
+
+    const section = document.createElement('div');
+    section.className = 'bc-dim-section';
+
+    const label = document.createElement('p');
+    label.className = 'dim-group__label';
+    label.textContent = (lang === 'cs' ? dim.nameCs : dim.nameEn) +
+      (dim.isRequired ? '' : ' (volitelné)');
+    section.appendChild(label);
+
+    if (role === 'length') {
+      // Pill tlačítka pro délku
+      const row = document.createElement('div');
+      row.className = 'bc-length-row';
+      dim.mods.forEach(mod => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn--sm ' + (mod.id === selectedModId ? 'btn--primary' : 'btn--outline');
+        btn.textContent = (lang === 'cs' ? mod.nameCs : mod.nameEn) +
+          (mod.price > 0 ? ` +${mod.price|0} Kč` : '');
+        btn.addEventListener('click', () => {
+          setSelected(typeId, dim.id, mod.id);
+          renderBeadChain(typeId);
+        });
+        row.appendChild(btn);
+      });
+      section.appendChild(row);
+    } else {
+      // Kolečka — fotka pokud existuje, jinak barva
+      const grid = document.createElement('div');
+      grid.className = 'bead-option-grid';
+      dim.mods.forEach(mod => {
+        const wrap = document.createElement('div');
+        wrap.className = 'bead-option-wrap';
+
+        const circle = document.createElement('button');
+        circle.type = 'button';
+        circle.className = 'bead-option' + (mod.id === selectedModId ? ' bead-option--active' : '');
+        circle.title = (lang === 'cs' ? mod.nameCs : mod.nameEn);
+        if (mod.imageUrl) {
+          circle.style.backgroundImage = `url(${mod.imageUrl})`;
+          circle.style.backgroundSize = 'cover';
+          circle.style.backgroundPosition = 'center';
+          circle.style.backgroundColor = mod.colorHex;
+        } else {
+          circle.style.background = mod.colorHex;
+        }
+        circle.addEventListener('click', () => {
+          setSelected(typeId, dim.id, mod.id);
+          renderBeadChain(typeId);
+        });
+
+        const name = document.createElement('span');
+        name.className = 'bead-option-name';
+        name.textContent = (lang === 'cs' ? mod.nameCs : mod.nameEn);
+        if (mod.price > 0) {
+          const priceSpan = document.createElement('span');
+          priceSpan.className = 'muted';
+          priceSpan.textContent = ` +${Math.round(mod.price)} Kč`;
+          name.appendChild(priceSpan);
+        }
+
+        wrap.appendChild(circle);
+        wrap.appendChild(name);
+        grid.appendChild(wrap);
+      });
+      section.appendChild(grid);
+    }
+
+    container.appendChild(section);
+  });
+}
+
+function _renderSVG(typeId, data) {
+  const g = document.getElementById('bc-beads-' + typeId);
+  if (!g) return;
+  g.innerHTML = '';
+
+  // Vyčisti staré clip-paths pro tento typ
+  const svgEl = g.closest('svg');
+  let defs = svgEl.querySelector('defs');
+  if (!defs) {
+    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    svgEl.insertBefore(defs, g);
+  }
+  // Odstraň jen clip-paths pro tento typ (prefix bc-clip-{typeId}-)
+  Array.from(defs.querySelectorAll(`[id^="bc-clip-${typeId}-"]`)).forEach(el => el.remove());
+
+  const sel = getSelected(typeId);
+
+  // Najdi vybrané modifikátory dle role dimenze
+  let mainColor = '#cccccc', mainImg = '';
+  let accentColor = null,    accentImg = null;
+  let sepColor = '#aaaaaa',  sepImg = '';
+  let beadCount = 18;
+
+  data.dims.forEach(dim => {
+    const modId = sel[dim.id];
+    const mod = dim.mods.find(m => m.id === modId);
+    if (!mod) return;
+    const role = dimRole(dim.slug);
+    if (role === 'length' && mod.beadCount) beadCount = mod.beadCount;
+    if (role === 'main')      { mainColor = mod.colorHex;   mainImg = mod.imageUrl || ''; }
+    if (role === 'accent')    { accentColor = mod.colorHex; accentImg = mod.imageUrl || null; }
+    if (role === 'separator') { sepColor = mod.colorHex;    sepImg = mod.imageUrl || ''; }
+  });
+
+  // Sestav sekvenci: {type, color, imageUrl}
+  const hasAccent   = accentColor !== null;
+  const accentCount = hasAccent ? 3 : 0;
+  const mainCount   = beadCount - accentCount;
+  const sequence    = [];
+  const mainLeft    = Math.floor(mainCount / 2);
+  const mainRight   = mainCount - mainLeft;
+
+  for (let i = 0; i < mainLeft; i++) {
+    if (i > 0) sequence.push({type:'sep',    color: sepColor,    imageUrl: sepImg});
+    sequence.push(          {type:'main',   color: mainColor,   imageUrl: mainImg});
+  }
+  for (let i = 0; i < accentCount; i++) {
+    sequence.push({type:'sep',    color: sepColor,    imageUrl: sepImg});
+    sequence.push({type:'accent', color: accentColor, imageUrl: accentImg || ''});
+  }
+  for (let i = 0; i < mainRight; i++) {
+    sequence.push({type:'sep',    color: sepColor,    imageUrl: sepImg});
+    sequence.push({type:'main',   color: mainColor,   imageUrl: mainImg});
+  }
+
+  // Spočítej celkovou šířku
+  const R_MAIN = 9, R_ACCENT = 11, R_SEP = 3;
+  const GAP = 4;
+  let totalW = 0;
+  sequence.forEach(b => {
+    const r = b.type === 'accent' ? R_ACCENT : b.type === 'sep' ? R_SEP : R_MAIN;
+    totalW += r * 2 + GAP;
+  });
+  totalW -= GAP;
+
+  // Vykresli
+  const svgW = 600, svgH = 80;
+  let x = (svgW - totalW) / 2;
+  const cy = svgH / 2;
+
+  sequence.forEach((b, idx) => {
+    const r = b.type === 'accent' ? R_ACCENT : b.type === 'sep' ? R_SEP : R_MAIN;
+    x += r;
+    const cx = parseFloat(x.toFixed(1));
+
+    if (b.imageUrl && b.type !== 'sep') {
+      // Korál s fotkou — kruhový clip + <image>
+      const clipId = `bc-clip-${typeId}-${idx}`;
+      const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+      clipPath.setAttribute('id', clipId);
+      const clipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      clipCircle.setAttribute('cx', cx); clipCircle.setAttribute('cy', cy); clipCircle.setAttribute('r', r);
+      clipPath.appendChild(clipCircle);
+      defs.appendChild(clipPath);
+
+      // Barevný fallback pozadí (kým se obrázek načte)
+      const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bgCircle.setAttribute('cx', cx); bgCircle.setAttribute('cy', cy); bgCircle.setAttribute('r', r);
+      bgCircle.setAttribute('fill', b.color);
+      g.appendChild(bgCircle);
+
+      const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      imgEl.setAttribute('href', b.imageUrl);
+      imgEl.setAttribute('x', (cx - r).toFixed(1));
+      imgEl.setAttribute('y', (cy - r).toFixed(1));
+      imgEl.setAttribute('width', r * 2);
+      imgEl.setAttribute('height', r * 2);
+      imgEl.setAttribute('clip-path', `url(#${clipId})`);
+      imgEl.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      g.appendChild(imgEl);
+
+      // Okraj přes fotku
+      const border = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      border.setAttribute('cx', cx); border.setAttribute('cy', cy); border.setAttribute('r', r);
+      border.setAttribute('fill', 'none');
+      border.setAttribute('stroke', b.type === 'accent' ? 'rgba(0,0,0,.3)' : 'rgba(0,0,0,.18)');
+      border.setAttribute('stroke-width', b.type === 'accent' ? '1.5' : '1');
+      g.appendChild(border);
+    } else {
+      // Korál bez fotky (nebo separator) — barevný kruh
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
+      circle.setAttribute('fill', b.color);
+      circle.setAttribute('stroke', b.type === 'accent' ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.15)');
+      circle.setAttribute('stroke-width', b.type === 'accent' ? '1.5' : '1');
+      g.appendChild(circle);
+    }
+
+    x += r + GAP;
+  });
+
+  // Vlasec / řetízková linka za korálky
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  const lx1 = (svgW - totalW) / 2 - 12;
+  const lx2 = (svgW + totalW) / 2 + 12;
+  line.setAttribute('x1', lx1); line.setAttribute('x2', lx2);
+  line.setAttribute('y1', cy);  line.setAttribute('y2', cy);
+  line.setAttribute('stroke', '#bbb'); line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('stroke-dasharray', '4 3');
+  g.insertBefore(line, g.firstChild);
+}
+
+function _updatePrice(typeId, data) {
+  const sel = getSelected(typeId);
+  let total = data.basePrice;
+  data.dims.forEach(dim => {
+    const modId = sel[dim.id];
+    const mod = dim.mods.find(m => m.id === modId);
+    if (mod) total += mod.price;
+  });
+  const el = document.getElementById('price-' + typeId);
+  if (el) el.textContent = total.toLocaleString('cs-CZ', {maximumFractionDigits:0}) + ' Kč';
+}
+
+function _updateConfigJson(typeId, data) {
+  const sel = getSelected(typeId);
+  const config = {};
+  data.dims.forEach(dim => {
+    if (sel[dim.id]) config[dim.id] = sel[dim.id];
+  });
+  const el = document.getElementById('config-json-' + typeId);
+  if (el) el.value = JSON.stringify(config);
+}
+
+function _syncNote(typeId) {
+  const visible = document.getElementById('bc-note-' + typeId);
+  const hidden  = document.getElementById('config-note-hidden-' + typeId);
+  if (visible && hidden) {
+    visible.oninput = () => { hidden.value = visible.value; };
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
 document.querySelectorAll('.type-panel').forEach(panel => {
-  const id = parseInt(panel.id.replace('type-', ''));
-  updateConfigurator(id);
+  const typeId = parseInt(panel.id.replace('type-', ''));
+  if (window._bcData && window._bcData[typeId]) {
+    renderBeadChain(typeId);
+  }
+  // Vrstvené typy se inicializují přes updateLayered z onchange eventů
 });
 </script>
 {% endblock %}

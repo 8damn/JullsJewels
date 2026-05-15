@@ -18,6 +18,10 @@ def get_current_user_optional(
     payload = decode_access_token(access_token)
     if not payload:
         return None
+    # Zamezit použití refresh tokenu jako access tokenu
+    # Starší tokeny (bez "type") jsou stále akceptovány pro zpětnou kompatibilitu
+    if payload.get("type") == "refresh":
+        return None
     user = db.get(User, int(payload["sub"]))
     if not user or not user.is_active:
         return None

@@ -38,8 +38,21 @@ async def _send(to: str, subject: str, body_html: str) -> None:
         logger.error("E-mail se nepodařilo odeslat: %s", exc)
 
 
-async def send_order_confirmation(order_id: int, to: str, var_symbol: str, total: float) -> None:
+async def send_order_confirmation(
+    order_id: int,
+    to: str,
+    var_symbol: str,
+    total: float,
+    confirm_token: str | None = None,
+) -> None:
     subject = f"Potvrzení objednávky #{order_id} — Jullsjewels"
+
+    # Link na detail objednávky — pokud máme token, přidáme ho (pro hosty bez účtu)
+    link_html = ""
+    if confirm_token:
+        link = f"/orders/{order_id}/confirmation?t={confirm_token}"
+        link_html = f'<p><a href="{link}">Zobrazit detail objednávky</a></p>'
+
     body = f"""
     <h2>Děkujeme za vaši objednávku!</h2>
     <p>Objednávka číslo <strong>#{order_id}</strong> byla přijata.</p>
@@ -47,6 +60,7 @@ async def send_order_confirmation(order_id: int, to: str, var_symbol: str, total
     <p><strong>K úhradě:</strong> {total:.2f} CZK</p>
     <p><strong>Variabilní symbol:</strong> {var_symbol}</p>
     <p>Po přijetí platby vás budeme informovat e-mailem.</p>
+    {link_html}
     <br>
     <p>Jullsjewels</p>
     """

@@ -32,12 +32,20 @@ class Product(Base):
 
     category: Mapped[Optional["Category"]] = relationship("Category", back_populates="products")
     images: Mapped[list["ProductImage"]] = relationship(
-        "ProductImage", back_populates="product", order_by="ProductImage.sort_order"
+        "ProductImage", back_populates="product", order_by="ProductImage.sort_order",
+        cascade="all, delete-orphan",
     )
-    variants: Mapped[list["ProductVariant"]] = relationship("ProductVariant", back_populates="product")
-    wishlist_items: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="product")
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        "ProductVariant", back_populates="product", cascade="all, delete-orphan",
+    )
+    wishlist_items: Mapped[list["WishlistItem"]] = relationship(
+        "WishlistItem", back_populates="product", cascade="all, delete-orphan",
+    )
     tags: Mapped[list["Tag"]] = relationship(
         "Tag", secondary="product_tags", back_populates="products"
+    )
+    attribute_options: Mapped[list["AttributeOption"]] = relationship(
+        "AttributeOption", secondary="product_attribute_options", back_populates="products"
     )
 
 

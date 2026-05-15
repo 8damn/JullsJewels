@@ -16,13 +16,18 @@ class ConfiguratorType(Base):
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     base_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # "layered" = vrstvené PNG preview | "bead_chain" = SVG korálkový řetěz
+    layout_mode: Mapped[str] = mapped_column(String(20), default="layered", nullable=False)
 
     dimensions: Mapped[list["ConfiguratorDimension"]] = relationship(
         "ConfiguratorDimension",
         back_populates="configurator_type",
         order_by="ConfiguratorDimension.sort_order",
+        cascade="all, delete-orphan",
     )
-    designs: Mapped[list["CustomDesign"]] = relationship("CustomDesign", back_populates="configurator_type")
+    designs: Mapped[list["CustomDesign"]] = relationship(
+        "CustomDesign", back_populates="configurator_type", passive_deletes=True,
+    )
 
 
 class ConfiguratorDimension(Base):
@@ -47,6 +52,7 @@ class ConfiguratorDimension(Base):
         "Modifier",
         back_populates="dimension",
         order_by="Modifier.sort_order",
+        cascade="all, delete-orphan",
     )
 
 
@@ -62,6 +68,9 @@ class Modifier(Base):
     image_asset_path: Mapped[Optional[str]] = mapped_column(String(500))
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Bead chain builder pole
+    color_hex: Mapped[Optional[str]] = mapped_column(String(7))     # barva korálu v SVG (#rrggbb)
+    bead_count: Mapped[Optional[int]] = mapped_column(Integer)      # pro délkové modifikátory: počet korálků
 
     dimension: Mapped["ConfiguratorDimension"] = relationship("ConfiguratorDimension", back_populates="modifiers")
 

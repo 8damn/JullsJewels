@@ -66,5 +66,25 @@
 </footer>
 
 {% block scripts %}{% endblock %}
+
+{# ── Auto-refresh access tokenu (tiše, na pozadí) ── #}
+{% if current_user %}
+<script>
+// Access token platí 1 hodinu. Po 55 minutách ho tiše obnovíme
+// pomocí refresh tokenu (httpOnly cookie /auth/refresh).
+// Pokud obnovení selže (refresh expiroval, odhlášení), stránka se tiše přenačte.
+(function () {
+  var REFRESH_MS = 55 * 60 * 1000; // 55 minut
+  function doRefresh() {
+    fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
+      .then(function (r) {
+        if (!r.ok) window.location.reload(); // refresh expiroval → přihlášení znovu
+      })
+      .catch(function () { /* offline nebo síťová chyba — ignoruj */ });
+  }
+  setTimeout(doRefresh, REFRESH_MS);
+})();
+</script>
+{% endif %}
 </body>
 </html>
