@@ -114,6 +114,149 @@
       </div>
     </div>
 
+    {# V4 — vylepšený slotbuilder, jen zákazník #}
+    <div class="card" style="border-color:#0f766e;position:relative">
+      <div class="preview">
+        <img src="/static/experiment/beads/6mm-amethyst.svg" alt="">
+        <img src="/static/experiment/beads/6mm-amethyst.svg" alt="">
+        <img src="/static/experiment/beads/6mm-amethyst.svg" alt="">
+        <img src="/static/experiment/beads/8mm-tigereye.svg" alt="">
+        <img src="/static/experiment/beads/6mm-rosequartz.svg" alt="">
+        <img src="/static/experiment/beads/6mm-rosequartz.svg" alt="">
+      </div>
+      <span class="tag">V4 — flexibilní stavebnice</span>
+      <h2>FreeBuilder</h2>
+      <div class="meta"><span>komplexnost: střední</span><span>kontrola: vysoká</span><span>jen zákazník</span></div>
+      <p>Zákazník si <b>sám volí pattern</b> (kolik a jakých slotů), nemusí všechny vyplnit. Živý <b>ukazatel délky v cm</b> podle skutečně umístěných korálků. Bez nuceného separátoru. Filozofie: "stavej dle svého, my spočítáme cm."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v4">Zákazník →</a>
+      </div>
+    </div>
+
+    {# V5 — Studio: drag-and-drop, start kostry, reorder #}
+    <div class="card" style="border-color:#7c3aed;position:relative">
+      <div class="preview">
+        <img src="/static/experiment/beads/6mm-rosequartz.svg" alt="">
+        <img src="/static/experiment/beads/6mm-amethyst.svg" alt="">
+        <img src="/static/experiment/beads/8mm-clearcrystal.svg" alt="">
+        <img src="/static/experiment/beads/8mm-amethyst-dark.svg" alt="">
+        <img src="/static/experiment/beads/8mm-clearcrystal.svg" alt="">
+        <img src="/static/experiment/beads/6mm-amethyst.svg" alt="">
+        <img src="/static/experiment/beads/6mm-rosequartz.svg" alt="">
+      </div>
+      <span class="tag">V5 — drag-and-drop studio</span>
+      <h2>Studio</h2>
+      <div class="meta"><span>komplexnost: nízká → vysoká</span><span>kontrola: vysoká</span><span>jen zákazník</span></div>
+      <p>Iterace nad V4: <b>start screen s vizuálními kostrami</b> (klikni a začni), pak <b>plnohodnotný drag-and-drop</b> — z palety do slotu, přesouvání korálků uvnitř náramku, trash zone pro mazání. Filozofie: "rychlý start z kostry, hloubka pro toho kdo chce."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v5">Zákazník →</a>
+      </div>
+    </div>
+
+    {# V6 — Atelier: validace pravidel, délkový rozsah, žádné prázdné sloty #}
+    <div class="card" style="border-color:#059669;position:relative">
+      <div class="preview">
+        <img src="/static/experiment/beads/6mm-labradorite.svg" alt="">
+        <img src="/static/experiment/beads/6mm-labradorite.svg" alt="">
+        <img class="spacer" src="/static/experiment/beads/sep-spacer-silver.svg" alt="">
+        <img src="/static/experiment/beads/8mm-clearcrystal.svg" alt="">
+        <img src="/static/experiment/beads/8mm-clearcrystal.svg" alt="">
+        <img class="spacer" src="/static/experiment/beads/sep-spacer-silver.svg" alt="">
+        <img src="/static/experiment/beads/6mm-labradorite.svg" alt="">
+      </div>
+      <span class="tag">V6 — validovaná výroba</span>
+      <h2>Atelier</h2>
+      <div class="meta"><span>komplexnost: střední</span><span>guard-rails</span><span>jen zákazník</span></div>
+      <p>Iterace nad V5: hlídá <b>pravidla výroby</b> (sep nesmí být na okraji, ne dva vedle sebe), <b>délkový rozsah ±1 cm</b> (CTA disabled mimo toleranci), žádné prázdné sloty — vždy konkrétní korálky. Předplněné <b>starter designy</b> místo prázdné kostry. Filozofie: "co si postavíš, jde reálně vyrobit."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v6">Zákazník →</a>
+      </div>
+    </div>
+
+    {# V7 — CurveStudio: kruhový vizualizér tvaru náramku #}
+    <div class="card" style="border-color:#be185d;position:relative">
+      <div class="preview" style="position:relative">
+        <svg viewBox="0 0 100 60" style="max-width:120px;height:55px">
+          <circle cx="50" cy="30" r="22" fill="none" stroke="#9a9a9a" stroke-width="1" stroke-dasharray="3 2" opacity=".5"/>
+          <circle cx="50" cy="8"  r="3.5" fill="#9b59b6"/>
+          <circle cx="65" cy="13" r="3.5" fill="#9b59b6"/>
+          <circle cx="72" cy="25" r="4.5" fill="#6c3483"/>
+          <circle cx="72" cy="37" r="4.5" fill="#d5d8dc"/>
+          <circle cx="65" cy="49" r="4.5" fill="#6c3483"/>
+          <circle cx="50" cy="52" r="3.5" fill="#f1948a"/>
+          <circle cx="35" cy="49" r="3.5" fill="#f1948a"/>
+          <circle cx="28" cy="37" r="3.5" fill="#9b59b6"/>
+          <circle cx="28" cy="25" r="3.5" fill="#9b59b6"/>
+          <circle cx="35" cy="13" r="3.5" fill="#9b59b6"/>
+        </svg>
+      </div>
+      <span class="tag">V7 — kruhová vizualizace</span>
+      <h2>CurveStudio</h2>
+      <div class="meta"><span>komplexnost: střední</span><span>tvar na ruce</span><span>jen zákazník</span></div>
+      <p>Iterace nad V6: hlavní pohled je <b>kruh — náramek viděný shora</b>, jako by ležel na zápěstí. Cílový obvod a tolerance ±1 cm jsou vidět jako podložené kruhy, korálky se rozprostírají po obvodu. <b>Zachovává všechna pravidla výroby</b> a drag-drop z V6. Filozofie: "vidíš tvar i velikost — víš jak to bude vypadat na ruce."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v7">Zákazník →</a>
+      </div>
+    </div>
+
+    {# V8 — Loop: kruh-centric, drag-drop přímo na kruh #}
+    <div class="card" style="border-color:#0891b2;position:relative">
+      <div class="preview" style="position:relative">
+        <svg viewBox="0 0 100 60" style="max-width:120px;height:55px">
+          <circle cx="50" cy="30" r="24" fill="none" stroke="#c0a878" stroke-width=".8" stroke-dasharray="2 1.5" opacity=".5"/>
+          <circle cx="50" cy="6"  r="4" fill="#f1948a"/>
+          <circle cx="67" cy="11" r="4" fill="#f1948a"/>
+          <circle cx="74" cy="24" r="5" fill="#1c2833"/>
+          <circle cx="74" cy="36" r="5" fill="#d5d8dc"/>
+          <circle cx="67" cy="49" r="5" fill="#1c2833"/>
+          <circle cx="50" cy="54" r="4" fill="#9b59b6"/>
+          <circle cx="33" cy="49" r="4" fill="#9b59b6"/>
+          <circle cx="26" cy="36" r="4" fill="#f1948a"/>
+          <circle cx="26" cy="24" r="4" fill="#f1948a"/>
+          <circle cx="33" cy="11" r="4" fill="#f1948a"/>
+        </svg>
+      </div>
+      <span class="tag">V8 — interaktivní kruh</span>
+      <h2>Loop</h2>
+      <div class="meta"><span>komplexnost: nízká</span><span>kruh = vše</span><span>jen zákazník</span></div>
+      <p>Iterace nad V7: minimalist UX, kruh je <b>hlavní interakce</b>. <b>Drag z palety přímo na obvod</b> kruhu, klik na korálek v kruhu ho smaže, drag korálku na jiné místo přesune. <b>Korálky mají fixní velikost</b> (nemění se s obvodem), kruh má minimum 12 cm. Žádný linear sequence dole — kruh je vše. Filozofie: "co vidíš, to edituješ."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v8">Zákazník →</a>
+      </div>
+    </div>
+
+    {# V9 — Duo: kruh + lineární řada sdílí sekvenci #}
+    <div class="card" style="border-color:#0d9488;border-width:2px;position:relative">
+      <span style="position:absolute;top:-10px;right:1rem;background:#0d9488;color:white;font-size:.65rem;padding:.2rem .55rem;border-radius:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600">novinka</span>
+      <div class="preview" style="position:relative;flex-direction:column;gap:4px;align-items:center;display:flex">
+        <svg viewBox="0 0 100 40" style="max-width:100px;height:36px">
+          <circle cx="50" cy="20" r="15" fill="none" stroke="#c0a878" stroke-width=".5" stroke-dasharray="2 1.5"/>
+          <circle cx="50" cy="6" r="2.6" fill="#1a1a1a"/>
+          <circle cx="60" cy="9" r="2.6" fill="#1a1a1a"/>
+          <circle cx="65" cy="20" r="3.2" fill="#6c3483"/>
+          <circle cx="60" cy="31" r="2.6" fill="#1a1a1a"/>
+          <circle cx="50" cy="35" r="2.6" fill="#1a1a1a"/>
+          <circle cx="40" cy="31" r="2.6" fill="#1a1a1a"/>
+          <circle cx="35" cy="20" r="2.6" fill="#1a1a1a"/>
+          <circle cx="40" cy="9" r="2.6" fill="#1a1a1a"/>
+        </svg>
+        <div style="display:flex;gap:2px;align-items:center">
+          <span style="width:6px;height:6px;border-radius:50%;background:#1a1a1a"></span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#1a1a1a"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#6c3483"></span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#1a1a1a"></span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#1a1a1a"></span>
+        </div>
+      </div>
+      <span class="tag">V9 — kruh + řada</span>
+      <h2>Duo</h2>
+      <div class="meta"><span>komplexnost: nízká</span><span>2 pohledy</span><span>plná default kostra</span></div>
+      <p>Iterace nad V8: vrací <b>lineární řadu pod kruh</b>. Oba pohledy <b>sdílí stejnou sekvenci</b> a <b>stejné drag-drop chování</b> — editace v kterémkoli se promítne do druhého. Otevírá se s <b>plnou výchozí kostrou</b> (onyx 6 mm po obvodu + 1× ametyst 8 mm uprostřed), nikoliv prázdná. Filozofie: "začni hotovým, dolaď si."</p>
+      <div class="links">
+        <a class="btn btn--cust" href="/experiment/v9">Zákazník →</a>
+      </div>
+    </div>
+
   </div>
 
   <footer>

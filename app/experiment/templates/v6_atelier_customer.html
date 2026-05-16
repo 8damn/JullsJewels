@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V6 Atelier — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f5f7f3;--surface:#fff;--ink:#1a1f1a;--muted:#6b7269;--accent:#059669;--accent-soft:#d1fae5;--accent-dark:#047857;--border:#e3e7df;--radius:10px;--ok:#16a34a;--warn:#ea580c;--danger:#dc2626;--shadow:0 4px 16px rgba(0,0,0,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-user-select:none;user-select:none}
+  input,textarea{user-select:text}
+
+  .top{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.05rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.88rem;margin-left:1rem}
+
+  /* ── START OVERLAY ── */
+  .start-overlay{position:fixed;inset:0;background:rgba(26,31,26,.65);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .25s}
+  .start-overlay.show{opacity:1;pointer-events:all}
+  .start-modal{background:var(--surface);border-radius:16px;max-width:980px;width:100%;max-height:92vh;overflow-y:auto;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .start-modal h1{margin:0 0 .35rem;font-size:1.6rem;font-weight:600;letter-spacing:-0.01em;text-align:center}
+  .start-modal .sub{text-align:center;color:var(--muted);margin:0 0 1.5rem;font-size:1rem}
+  .starter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+  .starter-card{background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;transition:border-color .15s,transform .1s,box-shadow .15s;display:flex;flex-direction:column;gap:.5rem}
+  .starter-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+  .starter-card.empty{border-style:dashed}
+  .starter-preview{background:linear-gradient(180deg,#faf7f0,#f1ead8);border-radius:8px;padding:1rem .8rem;height:70px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .starter-preview::before{content:'';position:absolute;top:50%;left:.6rem;right:.6rem;border-top:1px dashed #c7b896}
+  .starter-preview svg{max-width:100%;height:auto;position:relative}
+  .starter-name{font-weight:600;font-size:1rem}
+  .starter-desc{font-size:.78rem;color:var(--muted);line-height:1.4}
+  .starter-meta{font-size:.7rem;color:var(--muted);display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.1rem}
+  .starter-meta span{background:var(--surface);padding:.1rem .55rem;border-radius:10px;border:1px solid var(--border)}
+  .starter-meta .in-range{background:var(--accent-soft);color:var(--accent-dark);border-color:var(--accent)}
+  .empty-icon{height:70px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--muted)}
+
+  /* ── MAIN LAYOUT ── */
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 56px)}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+  /* PALETA */
+  .palette{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .palette-header{padding:.9rem 1.1rem;border-bottom:1px solid var(--border)}
+  .palette-header h2{margin:0;font-size:.95rem;font-weight:600}
+  .palette-header p{margin:.25rem 0 0;font-size:.76rem;color:var(--muted)}
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+  .tab{flex:1;padding:.65rem .3rem;border:none;background:none;cursor:pointer;font-size:.82rem;color:var(--muted);border-bottom:2px solid transparent;position:relative}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface);font-weight:600}
+  .tab.disabled{opacity:.4}
+  .tab .rule-hint{position:absolute;top:6px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--warn);display:none}
+  .tab.has-warning .rule-hint{display:block}
+
+  .palette-list{flex:1;padding:.85rem;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;align-content:start}
+  .palette-list.is-sep{grid-template-columns:1fr}
+  .bead-tile{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.55rem .35rem;background:var(--bg);border-radius:8px;cursor:grab;border:1.5px solid transparent;transition:transform .1s,border-color .15s,box-shadow .15s;text-align:center}
+  .bead-tile:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .bead-tile:active{cursor:grabbing;transform:scale(.96)}
+  .bead-tile.dragging{opacity:.4}
+  .bead-tile.disabled{opacity:.35;cursor:not-allowed;border-style:dashed}
+  .bead-tile.disabled:hover{border-color:var(--border);box-shadow:none;transform:none}
+  .bead-tile img{width:44px;height:44px;border-radius:50%;pointer-events:none}
+  .bead-tile.is-spacer img{width:42px;height:18px;border-radius:5px}
+  .bead-tile .nm{font-size:.74rem;font-weight:500;line-height:1.2;color:var(--ink)}
+  .bead-tile .pr{font-size:.66rem;color:var(--muted)}
+
+  /* BUILDER */
+  .builder{padding:1.25rem 1.75rem;display:flex;flex-direction:column;gap:1rem;background:linear-gradient(180deg,var(--bg) 0%,var(--surface) 100%);overflow-y:auto}
+
+  /* Disclaimer pruh */
+  .disclaimer{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:var(--radius);padding:.75rem 1rem;font-size:.83rem;color:#78350f;display:flex;gap:.6rem;align-items:flex-start}
+  .disclaimer-icon{flex-shrink:0;font-size:1.1rem;line-height:1.3}
+  .disclaimer b{color:#451a03}
+
+  /* Metric strip */
+  .metric-strip{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1.1rem;display:flex;flex-wrap:wrap;align-items:center;gap:1rem}
+  .targets{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
+  .targets .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-right:.2rem}
+  .target{padding:.3rem .75rem;background:var(--bg);border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:.82rem;color:var(--ink)}
+  .target.active{background:var(--accent);color:white;border-color:var(--accent)}
+  .target-custom{display:flex;align-items:center;gap:.25rem;padding:.3rem .65rem;background:var(--bg);border:1px solid var(--border);border-radius:14px;color:var(--muted);font-size:.82rem}
+  .target-custom input{width:48px;border:none;background:none;font-family:inherit;color:var(--ink);text-align:right;font-weight:600;font-size:.82rem}
+  .target-custom input:focus{outline:none}
+  .target-custom.active{background:var(--accent);border-color:var(--accent);color:white}
+  .target-custom.active input{color:white}
+
+  .length-block{margin-left:auto;display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+  .length-val{font-size:1.6rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .length-target{font-size:.82rem;color:var(--muted)}
+  .length-status{font-size:.78rem;font-weight:600;padding:.2rem .65rem;border-radius:12px}
+  .length-status.ok{background:var(--accent-soft);color:var(--accent-dark)}
+  .length-status.warn{background:#ffedd5;color:var(--warn)}
+  .length-status.under{background:#fef9c3;color:#a16207}
+  .length-status.over{background:#fee2e2;color:var(--danger)}
+  .length-status.empty{background:var(--bg);color:var(--muted)}
+
+  /* Bar s tolerance bandem */
+  .bar-wrap{flex-basis:100%;position:relative;height:14px;margin-top:.25rem}
+  .bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;width:100%;position:relative;top:3px}
+  .bar-band{position:absolute;top:3px;height:8px;background:var(--accent-soft);border-left:1px solid var(--accent);border-right:1px solid var(--accent);border-radius:2px;pointer-events:none}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#ea580c,#dc2626);transition:width .3s,background .3s;width:0%;position:relative}
+  .bar-fill.ok{background:linear-gradient(90deg,var(--accent),var(--accent-dark))}
+  .bar-target{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.6;pointer-events:none;z-index:2}
+  .bar-target::after{content:'cíl';position:absolute;top:-12px;left:-9px;font-size:.6rem;color:var(--ink);opacity:.7;letter-spacing:.05em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+
+  /* Strand */
+  .strand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .strand-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem}
+  .strand-header h3{margin:0;font-size:.95rem}
+  .strand-header .summary{color:var(--muted);font-size:.82rem}
+
+  .sequence{display:flex;align-items:center;flex-wrap:wrap;gap:0;padding:1.5rem .9rem;background:linear-gradient(180deg,#faf7f0,#f1ead8);border-radius:8px;min-height:96px;position:relative;transition:background .15s}
+  .sequence.drag-active{background:linear-gradient(180deg,#f5edd9,#e8dcb8)}
+  .sequence::before{content:'';position:absolute;top:50%;left:1.1rem;right:1.1rem;height:1px;border-top:1px dashed #c7b896;z-index:0}
+
+  .seq-bead{position:relative;z-index:1;transition:transform .12s,opacity .15s;cursor:grab}
+  .seq-bead:active{cursor:grabbing}
+  .seq-bead:hover{transform:translateY(-3px)}
+  .seq-bead.dragging{opacity:.35}
+  .seq-bead img{display:block;border-radius:50%;border:1px solid rgba(0,0,0,.18);background:white;pointer-events:none}
+  .seq-bead.size-main img    {width:30px;height:30px}
+  .seq-bead.size-accent img  {width:38px;height:38px}
+  .seq-bead.size-rocaille img{width:12px;height:12px}
+  .seq-bead.size-spacer img  {width:18px;height:10px;border-radius:4px}
+  .seq-bead .x{position:absolute;top:-7px;right:-7px;background:var(--danger);color:white;width:18px;height:18px;border-radius:50%;font-size:.78rem;line-height:1;display:none;align-items:center;justify-content:center;font-weight:700;cursor:pointer}
+  .seq-bead:hover .x{display:flex}
+  /* Validation: violator výrazně barvitý */
+  .seq-bead.violation{box-shadow:0 0 0 2px var(--danger);border-radius:50%;animation:wobble .4s ease-out}
+  @keyframes wobble{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+
+  /* Drop gap */
+  .drop-gap{flex:0 0 5px;height:42px;transition:flex-basis .15s,background .15s;z-index:1;display:flex;align-items:center;justify-content:center;color:transparent;border-radius:4px}
+  .drop-gap.drag-active{flex-basis:18px}
+  .drop-gap.drag-over.valid{flex-basis:34px;background:var(--accent-soft);color:var(--accent)}
+  .drop-gap.drag-over.invalid{flex-basis:34px;background:#fee2e2;color:var(--danger)}
+  .drop-gap.drag-over.valid::after{content:'+';font-size:1.2rem;font-weight:300}
+  .drop-gap.drag-over.invalid::after{content:'⛔';font-size:.9rem}
+
+  .seq-bead.drag-over.valid{box-shadow:0 0 0 3px var(--accent-soft);border-radius:50%}
+  .seq-bead.drag-over.invalid{box-shadow:0 0 0 3px #fee2e2;border-radius:50%}
+
+  .sequence-empty-msg{padding:1rem;text-align:center;color:var(--muted);font-size:.9rem;font-style:italic;width:100%;border:2px dashed transparent;border-radius:8px;transition:border-color .15s,background .15s}
+  .sequence-empty-msg.drag-over.valid{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark)}
+  .sequence-empty-msg.drag-over.invalid{border-color:var(--danger);background:#fee2e2;color:#7f1d1d}
+
+  /* Validační panel */
+  .validation{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;font-size:.83rem;display:flex;align-items:flex-start;gap:.7rem}
+  .validation.ok{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-dark)}
+  .validation.warn{background:#fef9c3;border-color:#facc15;color:#854d0e}
+  .validation.err{background:#fee2e2;border-color:var(--danger);color:#7f1d1d}
+  .validation-icon{flex-shrink:0;font-size:1.1rem;line-height:1.2}
+  .validation .msg{flex:1}
+  .validation .msg b{font-weight:600}
+  .validation-list{margin:.3rem 0 0;padding-left:1.1rem;font-size:.78rem}
+  .validation-list li{margin-bottom:.1rem}
+
+  /* Toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.85rem;align-items:center}
+  .toolbar .right{display:flex;flex-wrap:wrap;gap:.4rem;margin-left:auto;align-items:center}
+  .icon-btn{background:var(--surface);border:1px solid var(--border);padding:.35rem .65rem;border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--ink);display:inline-flex;align-items:center;gap:.25rem}
+  .icon-btn:hover{background:var(--bg)}
+  .icon-btn:disabled{opacity:.4;cursor:not-allowed}
+  .toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.82rem;color:var(--ink);background:var(--surface);padding:.3rem .7rem;border-radius:18px;border:1px solid var(--border)}
+
+  /* Trash zone */
+  .trash-zone{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%) translateY(120%);background:#1a1f1a;color:white;padding:.85rem 2rem;border-radius:30px;font-size:.9rem;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:50;transition:transform .25s ease-out;display:flex;align-items:center;gap:.5rem;pointer-events:none}
+  .trash-zone.show{transform:translateX(-50%) translateY(0);pointer-events:all}
+  .trash-zone.drag-over{background:var(--danger);transform:translateX(-50%) translateY(0) scale(1.08)}
+
+  /* Summary + CTA */
+  .summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.8rem;align-items:center}
+  .stat{display:flex;flex-direction:column;text-align:center}
+  .stat .v{font-size:1.2rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat .l{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .price-final{font-size:1.5rem;font-weight:700;color:var(--accent)}
+  .cta{background:var(--accent);color:white;border:none;padding:.85rem 1.2rem;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .15s}
+  .cta:hover:not(:disabled){background:var(--accent-dark)}
+  .cta:disabled{opacity:.45;cursor:not-allowed;background:var(--muted)}
+
+  /* Toast (vyskočí když uživatel zkusí porušit pravidlo) */
+  .toast{position:fixed;top:1.2rem;left:50%;transform:translateX(-50%) translateY(-200%);background:var(--danger);color:white;padding:.7rem 1.4rem;border-radius:20px;font-size:.88rem;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:60;transition:transform .3s ease-out;display:flex;align-items:center;gap:.5rem;pointer-events:none}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .live-hint{font-size:.76rem;color:var(--muted);text-align:center;margin-top:.4rem}
+  .live-hint kbd{background:var(--bg);padding:1px 5px;border-radius:3px;border:1px solid var(--border);font-family:inherit;font-size:.7rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V6 — Atelier <span style="color:var(--muted);font-weight:400">/ s pravidly výroby</span></h1>
+  <div>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+{# ── START OVERLAY ── #}
+<div class="start-overlay show" id="start-overlay">
+  <div class="start-modal">
+    <h1>Vyber si výchozí náramek</h1>
+    <p class="sub">Pak ho přizpůsob — měň korálky drag-and-dropem, přidávej, ubírej. Hlídáme za tebe pravidla výroby.</p>
+    <div class="starter-grid" id="starter-grid"></div>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── PALETA ── #}
+  <div class="palette">
+    <div class="palette-header">
+      <h2>Korálky</h2>
+      <p>Přetáhni do náramku, nebo klikni pro přidání.</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="main">6 mm</button>
+      <button class="tab" data-tab="accent">8 mm</button>
+      <button class="tab" data-tab="sep">Rozdělovače <span class="rule-hint"></span></button>
+    </div>
+    <div class="palette-list" id="palette-list"></div>
+  </div>
+
+  {# ── BUILDER ── #}
+  <div class="builder">
+
+    {# Disclaimer #}
+    <div class="disclaimer">
+      <span class="disclaimer-icon">ⓘ</span>
+      <div>
+        <b>Pro pevné na ruce</b> nastav cíl o 0,5–1 cm <i>menší</i> než obvod zápěstí.
+        <b>Pro volné</b> naopak o 1 cm <i>větší</i>. Tolerance výroby: <b>±1 cm</b>.
+      </div>
+    </div>
+
+    {# Cílová délka + indikátor s tolerance bandem #}
+    <div class="metric-strip">
+      <div class="targets" id="targets">
+        <span class="label">Cíl:</span>
+      </div>
+      <div class="length-block">
+        <span class="length-val" id="length-val">0,0 cm</span>
+        <span class="length-target" id="length-target-text"></span>
+        <span class="length-status empty" id="length-status">prázdný</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-band" id="bar-band"></div>
+        <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+        <div class="bar-target" id="bar-target" style="left:100%"></div>
+      </div>
+    </div>
+
+    {# Validační panel — ukazuje status pravidel #}
+    <div class="validation" id="validation">
+      <span class="validation-icon">·</span>
+      <div class="msg">Začni výběrem výchozího náramku.</div>
+    </div>
+
+    {# Sekvence náramku #}
+    <div class="strand-card">
+      <div class="strand-header">
+        <h3>Tvůj náramek</h3>
+        <span class="summary" id="strand-summary">—</span>
+      </div>
+      <div class="sequence" id="sequence">
+        <div class="sequence-empty-msg">Otevři výběr výchozího náramku ↑, nebo přetáhni první korálek z palety →</div>
+      </div>
+
+      <div class="toolbar">
+        <label class="toggle"><input type="checkbox" id="symmetry"> Zrcadlit</label>
+        <div class="right">
+          <button class="icon-btn" onclick="openStart()" title="načíst jiný výchozí náramek">📐 Výchozí…</button>
+          <button class="icon-btn" onclick="undo()" id="undo-btn" disabled title="vrátit poslední krok">↶ zpět</button>
+          <button class="icon-btn" onclick="reverseStrand()" title="otočit směr">⇄</button>
+          <button class="icon-btn" onclick="clearAll()" style="color:var(--danger)" title="vyčistit">🗑</button>
+        </div>
+      </div>
+
+      <p class="live-hint">
+        <kbd>táhni</kbd> z palety na korálek → nahradí · <kbd>táhni</kbd> do mezery → vloží · <kbd>klikni</kbd> nebo táhni na trash → smaže
+      </p>
+    </div>
+
+    {# Summary + CTA #}
+    <div class="summary">
+      <div class="stat"><span class="v" id="stat-count">0</span><span class="l">Korálků</span></div>
+      <div class="stat"><span class="v" id="stat-mains">0</span><span class="l">6 mm</span></div>
+      <div class="stat"><span class="v" id="stat-accents">0</span><span class="l">8 mm</span></div>
+      <div class="stat"><span class="v" id="stat-seps">0</span><span class="l">Sep</span></div>
+      <div class="stat"><span class="v price-final" id="price">— Kč</span><span class="l">Celkem</span></div>
+      <button class="cta" id="cta" disabled>Vyber výchozí náramek</button>
+    </div>
+
+  </div>
+</div>
+
+{# Trash zone #}
+<div class="trash-zone" id="trash">🗑️ Pusť sem pro smazání</div>
+
+{# Toast #}
+<div class="toast" id="toast">⛔ <span id="toast-msg">—</span></div>
+
+<script>
+const BEADS_6MM   = {{ beads_6mm|tojson }};
+const BEADS_8MM   = {{ beads_8mm|tojson }};
+const SEPARATORS  = {{ separators|tojson }};
+const BASE_PRICE  = 380;
+const BASE_LEN_MM = 12;
+const TOLERANCE_CM = 1.0;  // ±1 cm — měkká tolerance výroby
+
+const SIZE_MM = { main: 6, accent: 8, rocaille: 2.5, spacer: 4 };
+const POOL = { main: BEADS_6MM, accent: BEADS_8MM, sep: SEPARATORS };
+
+const TARGETS = [
+  { cm: 16, name: '16' },
+  { cm: 18, name: '18' },
+  { cm: 20, name: '20' },
+];
+let currentTarget = TARGETS[1];
+let customTarget = null;
+
+// ── Předplněné výchozí návrhy (žádné prázdné sloty — pure sekvence) ──
+// V STARTERS používáme slugy; při loadu se enrichnou.
+const STARTERS = [
+  {
+    id: 'lavender',
+    name: 'Lavender Dream',
+    desc: 'Něžné fialové odstíny, 3 akcenty uprostřed',
+    layout: [
+      ['main','rosequartz'],['main','rosequartz'],['main','amethyst'],
+      ['accent','amethyst-dark'],['accent','clearcrystal'],['accent','amethyst-dark'],
+      ['main','amethyst'],['main','rosequartz'],['main','rosequartz'],
+    ],
+  },
+  {
+    id: 'crystal-sparkle',
+    name: 'Crystal Sparkle',
+    desc: 'Tmavý onyx s křišťálovými akcenty a rozdělovači',
+    layout: [
+      ['main','onyx'],['main','onyx'],['sep','rocaille-silver'],
+      ['accent','clearcrystal'],['sep','rocaille-silver'],
+      ['accent','clearcrystal'],['sep','rocaille-silver'],
+      ['accent','clearcrystal'],['sep','rocaille-silver'],
+      ['main','onyx'],['main','onyx'],
+    ],
+  },
+  {
+    id: 'tiger',
+    name: 'Tiger',
+    desc: 'Karneol s tygřím okem, zemité tóny',
+    layout: [
+      ['main','carnelian'],['main','carnelian'],['main','carnelian'],
+      ['accent','tigereye'],['accent','tigereye'],['accent','tigereye'],
+      ['main','carnelian'],['main','carnelian'],['main','carnelian'],
+    ],
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    desc: 'Labrador s křišťálem, s kovovými mezidíly',
+    layout: [
+      ['main','labradorite'],['main','labradorite'],
+      ['sep','spacer-silver'],
+      ['accent','clearcrystal'],['accent','clearcrystal'],['accent','clearcrystal'],
+      ['sep','spacer-silver'],
+      ['main','labradorite'],['main','labradorite'],
+    ],
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    desc: 'Aventurín a onyx, bez akcentů',
+    layout: [
+      ['main','aventurine'],['main','aventurine'],['main','onyx'],
+      ['main','aventurine'],['main','aventurine'],['main','onyx'],
+      ['main','aventurine'],['main','aventurine'],['main','onyx'],
+      ['main','aventurine'],['main','aventurine'],
+    ],
+  },
+  {
+    id: 'empty',
+    name: 'Začít prázdný',
+    desc: 'Postav si od jednoho korálku',
+    layout: [['main','amethyst']],  // start s 1 korálkem aby uživatel nezačal úplně prázdný
+  },
+];
+
+function buildLayout(layout) {
+  return layout.map(([cat, slug]) => {
+    const b = POOL[cat].find(x => x.slug === slug) || POOL[cat][0];
+    return enrichBead(b, cat);
+  });
+}
+
+// ── Hlavní stav ─────────────────────────────────────────────────
+let sequence = [];
+const history = [];
+let activeTab = 'main';
+
+function enrichBead(b, category) {
+  const sizeMm = category === 'main' ? SIZE_MM.main
+               : category === 'accent' ? SIZE_MM.accent
+               : (b.type === 'spacer' ? SIZE_MM.spacer : SIZE_MM.rocaille);
+  return { ...b, category, sizeMm };
+}
+function pushHistory() { history.push(JSON.parse(JSON.stringify(sequence))); if (history.length > 60) history.shift(); }
+
+// ══════════════════════════════════════════════════════════════════
+// VALIDAČNÍ PRAVIDLA — jádro V6
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Vrátí true pokud lze položit/přesunout bead do `seq` na pozici `idx`.
+ * mode: 'insert' (vloží PŘED idx) | 'replace' (nahradí na idx) | 'append' (na konec)
+ * options.skipIdx: pokud move v rámci sekvence, ignoruj zdrojový index pro sousednost
+ */
+function canPlace(seq, idx, mode, bead, options = {}) {
+  if (bead.category !== 'sep') return true; // minerální korálek lze kamkoliv
+
+  // Sestav "virtuální" sekvenci po operaci pro kontrolu okrajů a sousednosti
+  let virt;
+  if (mode === 'append') {
+    virt = [...seq, bead];
+    idx = virt.length - 1;
+  } else if (mode === 'replace') {
+    virt = [...seq];
+    virt[idx] = bead;
+  } else { // insert před idx
+    virt = [...seq];
+    virt.splice(idx, 0, bead);
+  }
+
+  // Pokud zdroj byl v sekvenci a posunul se, odstraň ho z virtuální
+  if (options.skipIdx !== undefined) {
+    let skip = options.skipIdx;
+    // Po insertu na <skip se pozice posune
+    if (mode === 'insert' && idx <= skip) skip += 1;
+    virt.splice(skip, 1);
+    if (mode === 'insert' && idx > options.skipIdx) idx -= 1; // protože jsme vytáhli zdroj zleva
+  }
+
+  // Pravidlo 1: separátor nesmí být na okraji
+  if (idx === 0) return false;
+  if (idx === virt.length - 1) return false;
+
+  // Pravidlo 2: žádné dva separátory vedle sebe
+  if (idx > 0 && virt[idx - 1].category === 'sep') return false;
+  if (idx < virt.length - 1 && virt[idx + 1].category === 'sep') return false;
+
+  return true;
+}
+
+/** Vrátí list chyb existující sekvence (pro validační panel). */
+function validateSequence(seq = sequence) {
+  const errs = [];
+  if (seq.length === 0) {
+    errs.push({type:'empty', msg:'Náramek je prázdný'});
+    return errs;
+  }
+  // Pravidla pro separátory
+  seq.forEach((b, i) => {
+    if (b.category === 'sep') {
+      if (i === 0) errs.push({type:'sep-edge', msg:'Separátor nesmí být na začátku', idx:i});
+      else if (i === seq.length - 1) errs.push({type:'sep-edge', msg:'Separátor nesmí být na konci', idx:i});
+      else if (seq[i-1].category === 'sep') errs.push({type:'sep-adjacent', msg:'Dva separátory nesmí být vedle sebe', idx:i});
+    }
+  });
+  // Délka
+  const cm = totalLengthCm(seq);
+  const t = currentTarget.cm;
+  if (cm < t - TOLERANCE_CM) errs.push({type:'too-short', msg:`Náramek je krátký o ${(t - cm).toFixed(1).replace('.', ',')} cm (mimo toleranci ±${TOLERANCE_CM} cm)`});
+  if (cm > t + TOLERANCE_CM) errs.push({type:'too-long',  msg:`Náramek je dlouhý o ${(cm - t).toFixed(1).replace('.', ',')} cm (mimo toleranci ±${TOLERANCE_CM} cm)`});
+  return errs;
+}
+
+/** Najde první platnou pozici pro vložení separátoru (klikem z palety). */
+function findValidSepInsertPos(bead) {
+  for (let i = 0; i <= sequence.length; i++) {
+    if (canPlace(sequence, i, 'insert', bead)) return i;
+  }
+  return -1;
+}
+
+/** Toast notifikace pro porušení pravidla. */
+let toastTimer = null;
+function showToast(msg) {
+  document.getElementById('toast-msg').textContent = msg;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// START OVERLAY
+// ══════════════════════════════════════════════════════════════════
+function renderStartOverlay() {
+  const grid = document.getElementById('starter-grid');
+  grid.innerHTML = '';
+  STARTERS.forEach(st => {
+    const isEmpty = st.id === 'empty';
+    const card = document.createElement('div');
+    card.className = 'starter-card' + (isEmpty ? ' empty' : '');
+    const builtSeq = buildLayout(st.layout);
+    const cm = (BASE_LEN_MM + builtSeq.reduce((s, b) => s + b.sizeMm, 0)) / 10;
+    const inRange = Math.abs(cm - currentTarget.cm) <= TOLERANCE_CM;
+    const previewSvg = isEmpty ? '<div class="empty-icon">+</div>' : renderStarterPreview(builtSeq);
+    card.innerHTML = `
+      <div class="starter-preview">${previewSvg}</div>
+      <div class="starter-name">${st.name}</div>
+      <div class="starter-desc">${st.desc}</div>
+      <div class="starter-meta">
+        <span>${isEmpty ? 'začni od 1' : builtSeq.length + ' korálků'}</span>
+        <span class="${inRange && !isEmpty ? 'in-range' : ''}">~${cm.toFixed(1).replace('.', ',')} cm</span>
+      </div>`;
+    card.onclick = () => loadStarter(st.id);
+    grid.appendChild(card);
+  });
+}
+
+function renderStarterPreview(seq) {
+  if (seq.length === 0) return '';
+  const W = 230, H = 36;
+  const padding = 6;
+  const usableW = W - 2 * padding;
+  const stepX = usableW / Math.max(seq.length - 1, 1);
+  const cy = H / 2;
+  let defs = '', shapes = '';
+  seq.forEach((b, i) => {
+    const x = padding + i * stepX;
+    let r;
+    if (b.category === 'main') r = Math.min(7, stepX*0.5);
+    else if (b.category === 'accent') r = Math.min(9, stepX*0.6);
+    else r = b.type === 'spacer' ? 4 : 2.5;
+    if (b.category === 'sep' && b.type === 'spacer') {
+      shapes += `<image href="${b.image}" x="${x-8}" y="${cy-3.5}" width="16" height="7"/>`;
+    } else {
+      const id = `c${i}-${Math.random().toString(36).slice(2,7)}`;
+      defs += `<clipPath id="${id}"><circle cx="${x}" cy="${cy}" r="${r}"/></clipPath>`;
+      shapes += `<image href="${b.image}" x="${x-r}" y="${cy-r}" width="${2*r}" height="${2*r}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>`;
+      shapes += `<circle cx="${x}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,0,0,.18)" stroke-width=".8"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>${shapes}</svg>`;
+}
+
+function loadStarter(id) {
+  const st = STARTERS.find(x => x.id === id);
+  if (!st) return;
+  pushHistory();
+  sequence = buildLayout(st.layout);
+  document.getElementById('start-overlay').classList.remove('show');
+  renderAll();
+}
+
+function openStart() { document.getElementById('start-overlay').classList.add('show'); }
+
+// ══════════════════════════════════════════════════════════════════
+// PALETA
+// ══════════════════════════════════════════════════════════════════
+function renderPalette() {
+  const c = document.getElementById('palette-list');
+  c.innerHTML = '';
+  c.classList.toggle('is-sep', activeTab === 'sep');
+
+  // Pro separátory: zkontroluj zda existuje nějaká pozice kam je lze vložit
+  const sepInsertPossible = activeTab !== 'sep' || sequence.some((_, i) => {
+    return SEPARATORS.length && canPlace(sequence, i, 'insert', enrichBead(SEPARATORS[0], 'sep'));
+  });
+  // Tab badge: warning pokud sep není možný
+  const sepTab = document.querySelector('.tab[data-tab="sep"]');
+  if (activeTab === 'sep' && !sepInsertPossible) {
+    sepTab.classList.add('has-warning');
+  } else {
+    sepTab.classList.remove('has-warning');
+  }
+
+  POOL[activeTab].forEach(b => {
+    const tile = document.createElement('div');
+    tile.className = 'bead-tile' + (b.type === 'spacer' ? ' is-spacer' : '');
+    if (activeTab === 'sep' && !sepInsertPossible) tile.classList.add('disabled');
+    tile.draggable = !tile.classList.contains('disabled');
+    tile.innerHTML = `
+      <img src="${b.image}" alt="${b.name}">
+      <span class="nm">${b.name}</span>
+      <span class="pr">${b.price > 0 ? '+' + b.price + ' Kč' : 'v ceně'}</span>`;
+    tile.onclick = () => {
+      if (tile.classList.contains('disabled')) {
+        showToast('Separátor musí mít z obou stran korálek. Přidej nejdřív víc korálků.');
+        return;
+      }
+      addBeadSmart(enrichBead(b, activeTab));
+    };
+    tile.addEventListener('dragstart', (e) => {
+      if (tile.classList.contains('disabled')) { e.preventDefault(); return; }
+      e.dataTransfer.setData('source', 'palette');
+      e.dataTransfer.setData('palette-slug', b.slug);
+      e.dataTransfer.setData('palette-cat', activeTab);
+      e.dataTransfer.effectAllowed = 'copy';
+      tile.classList.add('dragging');
+      onDragStart('palette');
+    });
+    tile.addEventListener('dragend', () => {
+      tile.classList.remove('dragging');
+      onDragEnd();
+    });
+    c.appendChild(tile);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    activeTab = t.dataset.tab;
+    renderAll();
+  };
+});
+
+// ══════════════════════════════════════════════════════════════════
+// Cílové délky
+// ══════════════════════════════════════════════════════════════════
+function renderTargets() {
+  const c = document.getElementById('targets');
+  c.querySelectorAll('.target, .target-custom').forEach(n => n.remove());
+  TARGETS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'target' + (!customTarget && currentTarget.cm === t.cm ? ' active' : '');
+    btn.textContent = t.name + ' cm';
+    btn.onclick = () => { currentTarget = t; customTarget = null; renderAll(); };
+    c.appendChild(btn);
+  });
+  const custom = document.createElement('div');
+  custom.className = 'target-custom' + (customTarget ? ' active' : '');
+  custom.innerHTML = `<span>vl.</span><input type="number" min="10" max="30" step="0.5"
+                      value="${customTarget || ''}" placeholder="—" oninput="setCustomTarget(this.value)"><span>cm</span>`;
+  c.appendChild(custom);
+}
+function setCustomTarget(v) {
+  const n = parseFloat(v);
+  if (!isNaN(n) && n >= 10 && n <= 30) {
+    customTarget = n;
+    currentTarget = { cm: n, name: n };
+  } else {
+    customTarget = null;
+  }
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Akce nad sekvencí (s respektem pravidel)
+// ══════════════════════════════════════════════════════════════════
+
+/** Klik v paletě: pro mineral = append (+ symetrie). Pro sep = vlož na první validní pozici. */
+function addBeadSmart(bead) {
+  const sym = document.getElementById('symmetry').checked;
+  if (bead.category === 'sep') {
+    const pos = findValidSepInsertPos(bead);
+    if (pos === -1) { showToast('Není kam vložit separátor — musí mít z obou stran korálek.'); return; }
+    pushHistory();
+    sequence.splice(pos, 0, bead);
+    renderAll();
+    return;
+  }
+  // Mineral korálek = na konec, příp. symetricky i na začátek
+  if (!canPlace(sequence, sequence.length, 'append', bead)) return; // shouldn't happen for mineral
+  pushHistory();
+  sequence.push(bead);
+  if (sym) sequence.unshift({ ...bead });
+  renderAll();
+}
+
+function removeAt(idx) {
+  pushHistory();
+  sequence.splice(idx, 1);
+  // Po smazání mohlo dojít k porušení: 2 sep vedle sebe, sep na okraji. Auto-cleanup:
+  cleanupOrphanedSeparators();
+  renderAll();
+}
+
+/** Pokud po smazání zůstaly separátory na okraji nebo vedle sebe, odeber je. */
+function cleanupOrphanedSeparators() {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    // okraj
+    if (sequence.length > 0 && sequence[0].category === 'sep') { sequence.shift(); changed = true; continue; }
+    if (sequence.length > 0 && sequence[sequence.length-1].category === 'sep') { sequence.pop(); changed = true; continue; }
+    // vedle sebe
+    for (let i = 1; i < sequence.length; i++) {
+      if (sequence[i].category === 'sep' && sequence[i-1].category === 'sep') {
+        sequence.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+}
+
+function clearAll() {
+  if (sequence.length === 0) return;
+  if (!confirm('Vyčistit celý náramek?')) return;
+  pushHistory();
+  sequence = [];
+  renderAll();
+}
+
+function reverseStrand() {
+  if (sequence.length < 2) return;
+  pushHistory();
+  sequence.reverse();
+  renderAll();
+}
+
+function undo() {
+  if (history.length === 0) return;
+  sequence = history.pop();
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Drag/drop
+// ══════════════════════════════════════════════════════════════════
+let dragSource = null;
+function onDragStart(source) {
+  dragSource = source;
+  document.getElementById('sequence').classList.add('drag-active');
+  document.querySelectorAll('.drop-gap').forEach(g => g.classList.add('drag-active'));
+  if (source === 'sequence') document.getElementById('trash').classList.add('show');
+}
+function onDragEnd() {
+  dragSource = null;
+  document.getElementById('sequence').classList.remove('drag-active');
+  document.querySelectorAll('.drop-gap, .seq-empty, .seq-bead').forEach(g => g.classList.remove('drag-over', 'valid', 'invalid'));
+  document.getElementById('trash').classList.remove('show', 'drag-over');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Render sekvence
+// ══════════════════════════════════════════════════════════════════
+function renderSequence() {
+  const c = document.getElementById('sequence');
+  c.innerHTML = '';
+  if (sequence.length === 0) {
+    // BUG FIX: prázdná sekvence musí být drop target pro první korálek
+    const placeholder = document.createElement('div');
+    placeholder.className = 'sequence-empty-msg';
+    placeholder.textContent = 'Otevři výběr výchozího náramku ↑, nebo přetáhni první korálek z palety →';
+    attachDropHandlers(placeholder, () => 0, 'insert');
+    c.appendChild(placeholder);
+    return;
+  }
+  // Najdi violations pro označení
+  const errs = validateSequence();
+  const violatorIdx = new Set();
+  errs.forEach(e => { if (e.idx !== undefined) violatorIdx.add(e.idx); });
+
+  c.appendChild(makeDropGap(0));
+  sequence.forEach((item, i) => {
+    c.appendChild(makeSeqBead(item, i, violatorIdx.has(i)));
+    c.appendChild(makeDropGap(i + 1));
+  });
+}
+
+function makeSeqBead(bead, idx, isViolator) {
+  const el = document.createElement('div');
+  const sizeClass = bead.category === 'main' ? 'size-main'
+                  : bead.category === 'accent' ? 'size-accent'
+                  : (bead.type === 'spacer' ? 'size-spacer' : 'size-rocaille');
+  el.className = 'seq-bead ' + sizeClass + (isViolator ? ' violation' : '');
+  el.draggable = true;
+  el.title = bead.name + ' — táhni pro přesun, klikni pro smazání';
+  el.innerHTML = `<img src="${bead.image}" alt="${bead.name}"><span class="x">×</span>`;
+  el.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); removeAt(idx); });
+  el.addEventListener('click', (e) => {
+    if (e.target.classList.contains('x')) return;
+    removeAt(idx);
+  });
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('source', 'sequence');
+    e.dataTransfer.setData('move-idx', String(idx));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('dragging');
+    onDragStart('sequence');
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    onDragEnd();
+  });
+  attachDropHandlers(el, () => idx, 'replace');
+  return el;
+}
+
+function makeDropGap(idx) {
+  const g = document.createElement('div');
+  g.className = 'drop-gap';
+  attachDropHandlers(g, () => idx, 'insert');
+  return g;
+}
+
+// Pomocná: zjisti zda by drop byl platný (pro feedback při dragu)
+function previewDropValid(e, targetIdx, mode) {
+  const source = e.dataTransfer.types.includes('source') ? null : null;
+  // V dragover nemůžeme číst data, ale typy ano (pomocí .includes)
+  const isPalette = e.dataTransfer.types.includes('palette-slug') ||
+                    e.dataTransfer.types.includes('Palette-Slug') ||
+                    e.dataTransfer.types.includes('palette-cat');
+  const isSeq = e.dataTransfer.types.includes('move-idx');
+
+  // Trochu zjednodušíme: pro feedback jen testujeme worst-case (separator)
+  // a pro mineral vždy true. Bez znalosti přesné kategorie zdroje:
+  if (isPalette) {
+    // Pro mineral z palety vždy povol; pro sep z palety zkontroluj.
+    // Bez znalosti kategorie tipnem podle activeTab (uživatel táhne to co vidí)
+    if (activeTab === 'sep') {
+      const dummy = enrichBead(SEPARATORS[0], 'sep');
+      return canPlace(sequence, targetIdx, mode, dummy);
+    }
+    return true;
+  }
+  if (isSeq) {
+    // Pro reorder neznáme moveIdx ani kategorii v dragover. Konzervativně: povol.
+    return true;
+  }
+  return true;
+}
+
+function attachDropHandlers(el, getIdx, mode) {
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const valid = previewDropValid(e, getIdx(), mode);
+    el.classList.add('drag-over', valid ? 'valid' : 'invalid');
+    e.dataTransfer.dropEffect = valid ? (e.dataTransfer.effectAllowed === 'move' ? 'move' : 'copy') : 'none';
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over', 'valid', 'invalid'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over', 'valid', 'invalid');
+    const targetIdx = getIdx();
+    const source = e.dataTransfer.getData('source');
+
+    if (source === 'palette') {
+      const slug = e.dataTransfer.getData('palette-slug');
+      const cat = e.dataTransfer.getData('palette-cat');
+      const bead = POOL[cat]?.find(b => b.slug === slug);
+      if (!bead) return;
+      const enriched = enrichBead(bead, cat);
+
+      // Validace pravidel
+      if (!canPlace(sequence, targetIdx, mode, enriched)) {
+        showToast(mode === 'replace'
+          ? 'Tady nelze nahradit separátorem — porušilo by pravidlo sousednosti.'
+          : 'Separátor musí mít z obou stran korálek.');
+        return;
+      }
+      pushHistory();
+      if (mode === 'replace') {
+        sequence[targetIdx] = enriched;
+      } else {
+        const wasEmpty = sequence.length === 0;
+        const isAtStart = targetIdx === 0;
+        const isAtEnd = targetIdx === sequence.length;
+        sequence.splice(targetIdx, 0, enriched);
+        // BUG FIX: Symetrie aplikuje i při drag-drop na okraj (jen pro mineral korálky)
+        const sym = document.getElementById('symmetry').checked;
+        if (sym && enriched.category !== 'sep' && !wasEmpty) {
+          if (isAtStart) sequence.push({ ...enriched });
+          else if (isAtEnd) sequence.unshift({ ...enriched });
+        }
+      }
+      cleanupOrphanedSeparators();
+      renderAll();
+    } else if (source === 'sequence') {
+      const fromIdx = parseInt(e.dataTransfer.getData('move-idx'));
+      if (isNaN(fromIdx)) return;
+      const item = sequence[fromIdx];
+
+      if (mode === 'replace') {
+        if (fromIdx === targetIdx) return;
+        // Swap: zkontroluj že ani jeden po swapu neporuší pravidla
+        const other = sequence[targetIdx];
+        const test = [...sequence];
+        test[fromIdx] = other;
+        test[targetIdx] = item;
+        const testErrs = validateSequence(test).filter(e => e.type !== 'too-short' && e.type !== 'too-long' && e.type !== 'empty');
+        if (testErrs.length > 0) {
+          showToast('Tato výměna by porušila pravidlo separátorů.');
+          return;
+        }
+        pushHistory();
+        sequence[fromIdx] = other;
+        sequence[targetIdx] = item;
+      } else {
+        // Insert: simuluj
+        const test = [...sequence];
+        test.splice(fromIdx, 1);
+        const newIdx = fromIdx < targetIdx ? targetIdx - 1 : targetIdx;
+        test.splice(newIdx, 0, item);
+        const testErrs = validateSequence(test).filter(e => e.type !== 'too-short' && e.type !== 'too-long' && e.type !== 'empty');
+        if (testErrs.length > 0) {
+          showToast('Tento přesun by porušil pravidlo separátorů.');
+          return;
+        }
+        pushHistory();
+        sequence.splice(fromIdx, 1);
+        sequence.splice(newIdx, 0, item);
+      }
+      renderAll();
+    }
+  });
+}
+
+// Trash zone
+const trash = document.getElementById('trash');
+trash.addEventListener('dragover', (e) => { e.preventDefault(); trash.classList.add('drag-over'); });
+trash.addEventListener('dragleave', () => trash.classList.remove('drag-over'));
+trash.addEventListener('drop', (e) => {
+  e.preventDefault();
+  trash.classList.remove('drag-over');
+  if (e.dataTransfer.getData('source') === 'sequence') {
+    const fromIdx = parseInt(e.dataTransfer.getData('move-idx'));
+    if (!isNaN(fromIdx)) {
+      pushHistory();
+      sequence.splice(fromIdx, 1);
+      cleanupOrphanedSeparators();
+      renderAll();
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// Délka, cena
+// ══════════════════════════════════════════════════════════════════
+function totalLengthMm(seq = sequence) {
+  if (seq.length === 0) return 0;
+  return BASE_LEN_MM + seq.reduce((s, b) => s + b.sizeMm, 0);
+}
+function totalLengthCm(seq = sequence) { return totalLengthMm(seq) / 10; }
+function totalPrice() {
+  if (sequence.length === 0) return 0;
+  return BASE_PRICE + sequence.reduce((s, b) => s + (b.price || 0), 0);
+}
+
+function lengthStatus() {
+  if (sequence.length === 0) return { cls: 'empty', txt: 'prázdný' };
+  const cm = totalLengthCm();
+  const t = currentTarget.cm;
+  const diff = cm - t;
+  if (Math.abs(diff) <= TOLERANCE_CM) return { cls: 'ok', txt: '✓ v toleranci' };
+  if (diff < 0) return { cls: 'under', txt: `chybí ${(-diff).toFixed(1).replace('.', ',')} cm` };
+  return { cls: 'over', txt: `přes ${diff.toFixed(1).replace('.', ',')} cm` };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Render všeho + validační panel + CTA gating
+// ══════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderPalette();
+  renderTargets();
+  renderSequence();
+
+  const cm = totalLengthCm();
+  document.getElementById('length-val').textContent = cm.toFixed(1).replace('.', ',') + ' cm';
+  document.getElementById('length-target-text').textContent = '/ cíl ' + currentTarget.cm + ' cm (±' + TOLERANCE_CM + ')';
+
+  const st = lengthStatus();
+  const stEl = document.getElementById('length-status');
+  stEl.textContent = st.txt;
+  stEl.className = 'length-status ' + st.cls;
+
+  // Bar s tolerance bandem
+  const maxScale = Math.max(currentTarget.cm * 1.5, cm + 2);
+  const pct = Math.min(100, (cm / maxScale) * 100);
+  const fill = document.getElementById('bar-fill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('ok', st.cls === 'ok');
+  // Target marker
+  document.getElementById('bar-target').style.left = ((currentTarget.cm / maxScale) * 100) + '%';
+  // Tolerance band
+  const bandLeft = ((Math.max(0, currentTarget.cm - TOLERANCE_CM) / maxScale) * 100);
+  const bandRight = (((currentTarget.cm + TOLERANCE_CM) / maxScale) * 100);
+  const band = document.getElementById('bar-band');
+  band.style.left = bandLeft + '%';
+  band.style.width = (bandRight - bandLeft) + '%';
+
+  // Stats
+  const counts = sequence.reduce((acc, b) => {
+    if (b.category === 'main') acc.main++;
+    else if (b.category === 'accent') acc.accent++;
+    else acc.sep++;
+    return acc;
+  }, {main:0, accent:0, sep:0});
+  document.getElementById('stat-count').textContent = sequence.length;
+  document.getElementById('stat-mains').textContent = counts.main;
+  document.getElementById('stat-accents').textContent = counts.accent;
+  document.getElementById('stat-seps').textContent = counts.sep;
+
+  const p = totalPrice();
+  document.getElementById('price').textContent = p > 0 ? Math.round(p).toLocaleString('cs-CZ') + ' Kč' : '— Kč';
+
+  // Validační panel
+  const errs = validateSequence();
+  const v = document.getElementById('validation');
+  v.classList.remove('ok', 'warn', 'err');
+  if (sequence.length === 0) {
+    v.classList.add('warn');
+    v.innerHTML = '<span class="validation-icon">·</span><div class="msg">Začni výběrem výchozího náramku.</div>';
+  } else if (errs.length === 0) {
+    v.classList.add('ok');
+    v.innerHTML = `<span class="validation-icon">✓</span><div class="msg"><b>Vše v pořádku</b> — náramek lze vyrobit, délka v toleranci.</div>`;
+  } else {
+    const hasRuleErr = errs.some(e => e.type === 'sep-edge' || e.type === 'sep-adjacent');
+    const hasLenErr = errs.some(e => e.type === 'too-short' || e.type === 'too-long');
+    v.classList.add(hasRuleErr ? 'err' : 'warn');
+    const list = errs.map(e => `<li>${e.msg}</li>`).join('');
+    const icon = hasRuleErr ? '⛔' : '⚠';
+    const title = hasRuleErr ? 'Náramek porušuje pravidla výroby:' : 'Délka mimo toleranci:';
+    v.innerHTML = `<span class="validation-icon">${icon}</span><div class="msg"><b>${title}</b><ul class="validation-list">${list}</ul></div>`;
+  }
+
+  // CTA — povoleno jen když: má aspoň 1 korálek, žádné rule errors, délka v toleranci
+  const cta = document.getElementById('cta');
+  if (sequence.length === 0) {
+    cta.disabled = true;
+    cta.textContent = 'Vyber výchozí náramek';
+  } else if (errs.length > 0) {
+    cta.disabled = true;
+    const hasRuleErr = errs.some(e => e.type === 'sep-edge' || e.type === 'sep-adjacent');
+    cta.textContent = hasRuleErr ? 'Oprav pravidla nahoře' : 'Uprav délku do tolerance';
+  } else {
+    cta.disabled = false;
+    cta.textContent = `Do košíku — ${Math.round(p).toLocaleString('cs-CZ')} Kč`;
+  }
+
+  const sh = document.getElementById('strand-summary');
+  if (sequence.length === 0) {
+    sh.textContent = 'začni výběrem výchozího návrhu';
+  } else {
+    sh.textContent = `${sequence.length} korálků · ${cm.toFixed(1).replace('.', ',')} cm`;
+  }
+
+  document.getElementById('undo-btn').disabled = history.length === 0;
+}
+
+// Init
+renderStartOverlay();
+renderAll();
+</script>
+</body>
+</html>

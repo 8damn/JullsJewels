@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V5 Studio — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#f8f5ef;--surface:#fff;--ink:#1f1d1a;--muted:#787169;--accent:#7c3aed;--accent-soft:#ede9fe;--border:#e8e0d2;--radius:10px;--ok:#16a34a;--warn:#ea580c;--danger:#dc2626;--shadow:0 4px 16px rgba(0,0,0,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-user-select:none;user-select:none}
+  input,textarea{user-select:text}
+
+  .top{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.05rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.88rem;margin-left:1rem}
+
+  /* ═══════════════════════════════════════════════════════════════
+     START OVERLAY (modální, fullscreen)
+     ═══════════════════════════════════════════════════════════════ */
+  .start-overlay{position:fixed;inset:0;background:rgba(31,29,26,.65);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .25s}
+  .start-overlay.show{opacity:1;pointer-events:all}
+  .start-modal{background:var(--surface);border-radius:16px;max-width:920px;width:100%;max-height:90vh;overflow-y:auto;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .start-modal h1{margin:0 0 .4rem;font-size:1.6rem;font-weight:600;letter-spacing:-0.01em;text-align:center}
+  .start-modal .sub{text-align:center;color:var(--muted);margin:0 0 1.5rem;font-size:1rem}
+  .skeleton-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+  .skel-card{background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;transition:border-color .15s,transform .1s;display:flex;flex-direction:column;gap:.5rem}
+  .skel-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .skel-card.empty{border-style:dashed;background:transparent}
+  .skel-preview{background:linear-gradient(180deg,#faf7ef,#f0e7d4);border-radius:8px;padding:1rem .8rem;height:62px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .skel-preview::before{content:'';position:absolute;top:50%;left:.6rem;right:.6rem;border-top:1px dashed #c7b896}
+  .skel-preview svg{max-width:100%;height:auto;position:relative}
+  .skel-name{font-weight:600;font-size:.95rem}
+  .skel-desc{font-size:.78rem;color:var(--muted);line-height:1.4}
+  .skel-meta{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:flex;gap:.5rem;flex-wrap:wrap}
+  .skel-meta span{background:var(--surface);padding:.1rem .5rem;border-radius:10px;border:1px solid var(--border)}
+  .empty-icon{height:62px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:var(--muted)}
+
+  /* ═══════════════════════════════════════════════════════════════
+     MAIN LAYOUT
+     ═══════════════════════════════════════════════════════════════ */
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 56px)}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+  /* PALETA */
+  .palette{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .palette-header{padding:.9rem 1.1rem;border-bottom:1px solid var(--border)}
+  .palette-header h2{margin:0;font-size:.95rem;font-weight:600}
+  .palette-header p{margin:.25rem 0 0;font-size:.76rem;color:var(--muted)}
+
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+  .tab{flex:1;padding:.65rem .3rem;border:none;background:none;cursor:pointer;font-size:.82rem;color:var(--muted);border-bottom:2px solid transparent}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface);font-weight:600}
+
+  .palette-list{flex:1;padding:.85rem;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;align-content:start}
+  .palette-list.is-sep{grid-template-columns:1fr}
+  .bead-tile{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.55rem .35rem;background:var(--bg);border-radius:8px;cursor:grab;border:1.5px solid transparent;transition:transform .1s,border-color .15s,box-shadow .15s;text-align:center}
+  .bead-tile:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .bead-tile:active{cursor:grabbing;transform:scale(.96)}
+  .bead-tile.dragging{opacity:.4}
+  .bead-tile img{width:44px;height:44px;border-radius:50%;pointer-events:none}
+  .bead-tile.is-spacer img{width:42px;height:18px;border-radius:5px}
+  .bead-tile .nm{font-size:.74rem;font-weight:500;line-height:1.2;color:var(--ink)}
+  .bead-tile .pr{font-size:.66rem;color:var(--muted)}
+
+  /* BUILDER */
+  .builder{padding:1.25rem 1.75rem;display:flex;flex-direction:column;gap:1rem;background:linear-gradient(180deg,var(--bg) 0%,var(--surface) 100%);overflow-y:auto}
+
+  /* Top metric strip */
+  .metric-strip{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1.1rem;display:flex;flex-wrap:wrap;align-items:center;gap:1rem}
+  .targets{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
+  .targets .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-right:.2rem}
+  .target{padding:.3rem .75rem;background:var(--bg);border:1px solid var(--border);border-radius:14px;cursor:pointer;font-size:.82rem;color:var(--ink)}
+  .target.active{background:var(--accent);color:white;border-color:var(--accent)}
+  .target-custom{display:flex;align-items:center;gap:.25rem;padding:.3rem .65rem;background:var(--bg);border:1px solid var(--border);border-radius:14px;color:var(--muted);font-size:.82rem}
+  .target-custom input{width:48px;border:none;background:none;font-family:inherit;color:var(--ink);text-align:right;font-weight:600;font-size:.82rem}
+  .target-custom input:focus{outline:none}
+  .target-custom.active{background:var(--accent);border-color:var(--accent);color:white}
+  .target-custom.active input{color:white}
+
+  .length-block{margin-left:auto;display:flex;align-items:baseline;gap:.6rem}
+  .length-val{font-size:1.6rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .length-target{font-size:.82rem;color:var(--muted)}
+  .length-status{font-size:.78rem;font-weight:600;padding:.2rem .6rem;border-radius:12px}
+  .length-status.ok{background:#dcfce7;color:var(--ok)}
+  .length-status.warn{background:#ffedd5;color:var(--warn)}
+  .length-status.under{background:#fef9c3;color:#a16207}
+  .length-status.over{background:#fee2e2;color:var(--danger)}
+  .length-status.empty{background:var(--bg);color:var(--muted)}
+
+  .bar-wrap{flex-basis:100%;position:relative;height:6px;margin-top:.25rem}
+  .bar{height:100%;background:var(--bg);border-radius:3px;overflow:hidden;width:100%}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#a855f7);transition:width .3s;width:0%}
+  .bar-fill.over{background:linear-gradient(90deg,var(--danger),#b91c1c)}
+  .bar-target{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.5;pointer-events:none}
+  .bar-target::after{content:'cíl';position:absolute;top:-13px;left:-9px;font-size:.6rem;color:var(--ink);opacity:.7;letter-spacing:.05em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+
+  /* Strand */
+  .strand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .strand-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem}
+  .strand-header h3{margin:0;font-size:.95rem}
+  .strand-header .summary{color:var(--muted);font-size:.82rem}
+
+  .sequence{display:flex;align-items:center;flex-wrap:wrap;gap:0;padding:1.5rem .9rem;background:linear-gradient(180deg,#faf7f0,#f1ead8);border-radius:8px;min-height:96px;position:relative;transition:background .15s}
+  .sequence.drag-active{background:linear-gradient(180deg,#f5edd9,#e8dcb8)}
+  .sequence::before{content:'';position:absolute;top:50%;left:1.1rem;right:1.1rem;height:1px;border-top:1px dashed #c7b896;z-index:0}
+
+  /* Bead in sequence (obsazený slot) */
+  .seq-bead{position:relative;z-index:1;transition:transform .12s,opacity .15s;cursor:grab}
+  .seq-bead:active{cursor:grabbing}
+  .seq-bead:hover{transform:translateY(-3px)}
+  .seq-bead.dragging{opacity:.35}
+  .seq-bead img{display:block;border-radius:50%;border:1px solid rgba(0,0,0,.18);background:white;pointer-events:none}
+  .seq-bead.size-main img    {width:30px;height:30px}
+  .seq-bead.size-accent img  {width:38px;height:38px}
+  .seq-bead.size-rocaille img{width:12px;height:12px}
+  .seq-bead.size-spacer img  {width:18px;height:10px;border-radius:4px}
+  .seq-bead .x{position:absolute;top:-7px;right:-7px;background:var(--danger);color:white;width:18px;height:18px;border-radius:50%;font-size:.78rem;line-height:1;display:none;align-items:center;justify-content:center;font-weight:700;cursor:pointer}
+  .seq-bead:hover .x{display:flex}
+
+  /* Empty slot */
+  .seq-empty{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;border:2px dashed #b8a780;background:rgba(255,255,255,.55);color:#9c8c66;font-size:.7rem;font-weight:600;transition:transform .15s,border-color .15s,background .15s;cursor:pointer}
+  .seq-empty:hover,.seq-empty.drag-over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:scale(1.08)}
+  .seq-empty.size-main    {width:30px;height:30px;border-radius:50%}
+  .seq-empty.size-accent  {width:38px;height:38px;border-radius:50%}
+  .seq-empty.size-rocaille{width:14px;height:14px;border-radius:50%;font-size:.55rem}
+  .seq-empty.size-spacer  {width:22px;height:12px;border-radius:4px;font-size:.55rem}
+  /* Highlight target empty slot when palette tab matches */
+  .seq-empty.hi-target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--accent-soft)}50%{box-shadow:0 0 0 7px rgba(124,58,237,.12)}}
+
+  /* Drop gap mezi beadami */
+  .drop-gap{flex:0 0 5px;height:42px;transition:flex-basis .15s,background .15s;z-index:1;display:flex;align-items:center;justify-content:center;color:transparent;border-radius:4px}
+  .drop-gap.drag-active{flex-basis:18px}
+  .drop-gap.drag-over{flex-basis:34px;background:var(--accent-soft);color:var(--accent)}
+  .drop-gap::after{content:'';font-size:1.2rem;font-weight:300}
+  .drop-gap.drag-over::after{content:'+'}
+
+  .sequence-empty-msg{padding:1rem;text-align:center;color:var(--muted);font-size:.9rem;font-style:italic;width:100%}
+
+  /* Toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.85rem;align-items:center}
+  .toolbar .left{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+  .toolbar .right{display:flex;flex-wrap:wrap;gap:.4rem;margin-left:auto;align-items:center}
+  .mini-add{display:inline-flex;align-items:center;gap:.25rem;padding:.3rem .65rem;background:var(--bg);border:1px dashed var(--border);border-radius:14px;cursor:pointer;font-size:.78rem;color:var(--muted)}
+  .mini-add:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .mini-add .d{width:8px;height:8px;border-radius:50%;background:#d4a98e}
+  .mini-add.a .d{width:10px;height:10px;background:#8eaed4}
+  .mini-add.s .d{width:6px;height:6px;background:#aaa}
+  .icon-btn{background:var(--surface);border:1px solid var(--border);padding:.35rem .6rem;border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--ink);display:inline-flex;align-items:center;gap:.25rem}
+  .icon-btn:hover{background:var(--bg)}
+  .icon-btn:disabled{opacity:.4;cursor:not-allowed}
+  .toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.82rem;color:var(--ink);background:var(--surface);padding:.3rem .7rem;border-radius:18px;border:1px solid var(--border)}
+
+  /* Trash zone — viditelná během dragu z náramku */
+  .trash-zone{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%) translateY(120%);background:#1f1d1a;color:white;padding:.85rem 2rem;border-radius:30px;font-size:.9rem;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:50;transition:transform .25s ease-out;display:flex;align-items:center;gap:.5rem;pointer-events:none}
+  .trash-zone.show{transform:translateX(-50%) translateY(0);pointer-events:all}
+  .trash-zone.drag-over{background:var(--danger);transform:translateX(-50%) translateY(0) scale(1.08)}
+
+  /* Summary + CTA */
+  .summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:.8rem;align-items:center}
+  .stat{display:flex;flex-direction:column;text-align:center}
+  .stat .v{font-size:1.2rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat .l{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .price-final{font-size:1.5rem;font-weight:700;color:var(--accent)}
+  .cta{background:var(--accent);color:white;border:none;padding:.85rem 1.2rem;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer}
+  .cta:hover{filter:brightness(1.05)}
+  .cta:disabled{opacity:.4;cursor:not-allowed}
+
+  .live-hint{font-size:.76rem;color:var(--muted);text-align:center;margin-top:.4rem}
+  .live-hint kbd{background:var(--bg);padding:1px 5px;border-radius:3px;border:1px solid var(--border);font-family:inherit;font-size:.7rem}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V5 — Studio <span style="color:var(--muted);font-weight:400">/ drag-and-drop konfigurátor</span></h1>
+  <div>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+{# ── START OVERLAY ── #}
+<div class="start-overlay show" id="start-overlay">
+  <div class="start-modal">
+    <h1>Jak chceš začít?</h1>
+    <p class="sub">Vyber kostru a dál si ji dolaď drag-and-dropem podle sebe.</p>
+    <div class="skeleton-grid" id="skel-grid">
+      {# generuje JS #}
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── PALETA ── #}
+  <div class="palette">
+    <div class="palette-header">
+      <h2>Korálky</h2>
+      <p>Přetáhni do náramku, nebo klikni pro vyplnění slotu.</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="main">6 mm</button>
+      <button class="tab" data-tab="accent">8 mm</button>
+      <button class="tab" data-tab="sep">Rozdělovače</button>
+    </div>
+    <div class="palette-list" id="palette-list"></div>
+  </div>
+
+  {# ── BUILDER ── #}
+  <div class="builder">
+
+    {# Cílová délka + indikátor jako úzký pás nahoře #}
+    <div class="metric-strip">
+      <div class="targets" id="targets">
+        <span class="label">Cíl:</span>
+      </div>
+      <div class="length-block">
+        <span class="length-val" id="length-val">0,0 cm</span>
+        <span class="length-target" id="length-target-text"></span>
+        <span class="length-status empty" id="length-status">prázdný</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+        <div class="bar-target" id="bar-target" style="left:100%"></div>
+      </div>
+    </div>
+
+    {# Sekvence náramku #}
+    <div class="strand-card">
+      <div class="strand-header">
+        <h3>Tvůj náramek</h3>
+        <span class="summary" id="strand-summary">začni výběrem kostry, nebo přidej korálek</span>
+      </div>
+      <div class="sequence" id="sequence">
+        <div class="sequence-empty-msg">Otevři výběr kostry, nebo přetáhni první korálek z palety →</div>
+      </div>
+
+      <div class="toolbar">
+        <div class="left">
+          <button class="mini-add" onclick="addEmptySlot('main')" title="přidat prázdný slot na 6mm korálek">
+            <span class="d"></span> + 6 mm slot
+          </button>
+          <button class="mini-add a" onclick="addEmptySlot('accent')" title="přidat prázdný slot na 8mm korálek">
+            <span class="d"></span> + 8 mm slot
+          </button>
+          <button class="mini-add s" onclick="addEmptySlot('sep')" title="přidat prázdný slot na rozdělovač">
+            <span class="d"></span> + sep slot
+          </button>
+        </div>
+        <div class="right">
+          <label class="toggle"><input type="checkbox" id="symmetry"> Zrcadlit</label>
+          <button class="icon-btn" onclick="openStart()" title="načíst jinou kostru">📐 Kostra…</button>
+          <button class="icon-btn" onclick="undo()" id="undo-btn" disabled title="vrátit poslední krok">↶</button>
+          <button class="icon-btn" onclick="reverseStrand()" title="otočit směr náramku">⇄</button>
+          <button class="icon-btn" onclick="clearAll()" style="color:var(--danger)" title="vyčistit všechno">🗑</button>
+        </div>
+      </div>
+
+      <p class="live-hint">
+        <kbd>táhni</kbd> z palety do slotu nebo mezery · <kbd>táhni</kbd> korálek v náramku pro přesun · <kbd>klikni</kbd> pro smazání
+      </p>
+    </div>
+
+    {# Summary + CTA #}
+    <div class="summary">
+      <div class="stat"><span class="v" id="stat-filled">0</span><span class="l">Korálků</span></div>
+      <div class="stat"><span class="v" id="stat-empty">0</span><span class="l">Prázdných</span></div>
+      <div class="stat"><span class="v" id="stat-mains">0</span><span class="l">6 mm</span></div>
+      <div class="stat"><span class="v" id="stat-accents">0</span><span class="l">8 mm</span></div>
+      <div class="stat"><span class="v" id="stat-seps">0</span><span class="l">Sep</span></div>
+      <div class="stat"><span class="v price-final" id="price">— Kč</span><span class="l">Celkem</span></div>
+      <button class="cta" id="cta" disabled>Přidej korálek</button>
+    </div>
+
+  </div>
+</div>
+
+{# ── TRASH ZONE (zobrazuje se během dragu z náramku) ── #}
+<div class="trash-zone" id="trash">
+  🗑️ Pusť sem pro smazání
+</div>
+
+<script>
+const BEADS_6MM   = {{ beads_6mm|tojson }};
+const BEADS_8MM   = {{ beads_8mm|tojson }};
+const SEPARATORS  = {{ separators|tojson }};
+const BASE_PRICE  = 380;
+const BASE_LEN_MM = 12;
+
+const SIZE_MM = { main: 6, accent: 8, rocaille: 2.5, spacer: 4 };
+const POOL = { main: BEADS_6MM, accent: BEADS_8MM, sep: SEPARATORS };
+
+const TARGETS = [
+  { cm: 16, name: '16' },
+  { cm: 18, name: '18' },
+  { cm: 20, name: '20' },
+];
+let currentTarget = TARGETS[1];
+let customTarget = null;
+
+// ── Kostry ─────────────────────────────────────────────────────
+// M = main 6mm, A = accent 8mm, S = sep, mezera = bez slotu (vizuální oddělení)
+const SKELETONS = [
+  { id: 'classic',    name: 'Klasický',          desc: '5×6 mm + 3×8 mm + 5×6 mm',           layout: 'MMMMM AAA MMMMM' },
+  { id: 'with-seps',  name: 'S rozdělovači',     desc: '3 sekce, mezi nimi rokajl',          layout: 'MMM S MMM S AAA S MMM S MMM' },
+  { id: 'minimal',    name: 'Minimalistický',    desc: 'Méně je víc — 5 slotů',              layout: 'MM A MM' },
+  { id: 'natural',    name: 'Přírodní',          desc: '18× 6 mm bez akcentů',               layout: 'MMMMMMMMMMMMMMMMMM' },
+  { id: 'rhythmic',   name: 'Rytmický',          desc: 'Pravidelné střídání s rozdělovači',  layout: 'M S M S M S M S M S M S M S M' },
+  { id: 'asym',       name: 'Asymetrický',       desc: 'Rozházený, pro odvážnější',          layout: 'MMM A MM S MM A MMM' },
+  { id: 'empty',      name: 'Prázdný',           desc: 'Začni od nuly, postav si sám',       layout: '' },
+];
+
+function parseLayout(layout) {
+  const out = [];
+  if (!layout) return out;
+  for (const ch of layout) {
+    if (ch === 'M') out.push(emptySlot('main'));
+    else if (ch === 'A') out.push(emptySlot('accent'));
+    else if (ch === 'S') out.push(emptySlot('sep'));
+  }
+  return out;
+}
+
+// ── Hlavní stav ─────────────────────────────────────────────────
+let sequence = [];
+const history = [];
+let activeTab = 'main';
+
+function enrichBead(b, category) {
+  const sizeMm = category === 'main' ? SIZE_MM.main
+               : category === 'accent' ? SIZE_MM.accent
+               : (b.type === 'spacer' ? SIZE_MM.spacer : SIZE_MM.rocaille);
+  return { ...b, category, sizeMm, empty: false };
+}
+function emptySlot(category) { return { category, empty: true, sizeMm: 0 }; }
+function pushHistory() { history.push(JSON.parse(JSON.stringify(sequence))); if (history.length > 60) history.shift(); }
+
+// ── Start overlay ──────────────────────────────────────────────
+function renderStartOverlay() {
+  const grid = document.getElementById('skel-grid');
+  grid.innerHTML = '';
+  SKELETONS.forEach(sk => {
+    const isEmpty = sk.id === 'empty';
+    const card = document.createElement('div');
+    card.className = 'skel-card' + (isEmpty ? ' empty' : '');
+    const skelSeq = parseLayout(sk.layout);
+    const previewSvg = isEmpty
+      ? '<div class="empty-icon">+</div>'
+      : renderSkelPreviewSVG(skelSeq);
+    const lenMm = skelSeq.reduce((s, x) => s + (x.category === 'main' ? 6 : x.category === 'accent' ? 8 : x.category === 'sep' ? 3 : 0), 0);
+    const lenStr = isEmpty ? '—' : (lenMm / 10).toFixed(1).replace('.', ',') + ' cm';
+    card.innerHTML = `
+      <div class="skel-preview">${previewSvg}</div>
+      <div class="skel-name">${sk.name}</div>
+      <div class="skel-desc">${sk.desc}</div>
+      <div class="skel-meta">
+        <span>${isEmpty ? '0 slotů' : skelSeq.length + ' slotů'}</span>
+        <span>~${lenStr}</span>
+      </div>`;
+    card.onclick = () => loadSkeleton(sk.id);
+    grid.appendChild(card);
+  });
+}
+
+function renderSkelPreviewSVG(skelSeq) {
+  if (skelSeq.length === 0) return '';
+  const W = 200, H = 30;
+  const padding = 4;
+  const usableW = W - 2 * padding;
+  const stepX = usableW / Math.max(skelSeq.length - 1, 1);
+  let html = '';
+  skelSeq.forEach((s, i) => {
+    const x = padding + i * stepX;
+    const cy = H / 2;
+    let r, shape;
+    if (s.category === 'main') r = 5;
+    else if (s.category === 'accent') r = 6.5;
+    else r = 2;
+    if (s.category === 'sep') {
+      html += `<circle cx="${x}" cy="${cy}" r="${r}" fill="#fff" stroke="#b8a780" stroke-width="1.5" stroke-dasharray="2 1"/>`;
+    } else {
+      html += `<circle cx="${x}" cy="${cy}" r="${r}" fill="rgba(255,255,255,.7)" stroke="#b8a780" stroke-width="1.5" stroke-dasharray="2 1.5"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${html}</svg>`;
+}
+
+function loadSkeleton(id) {
+  const sk = SKELETONS.find(s => s.id === id);
+  if (!sk) return;
+  pushHistory();
+  sequence = parseLayout(sk.layout);
+  document.getElementById('start-overlay').classList.remove('show');
+  renderAll();
+}
+
+function openStart() {
+  document.getElementById('start-overlay').classList.add('show');
+}
+
+// ── Palette ─────────────────────────────────────────────────────
+function renderPalette() {
+  const c = document.getElementById('palette-list');
+  c.innerHTML = '';
+  c.classList.toggle('is-sep', activeTab === 'sep');
+  POOL[activeTab].forEach(b => {
+    const tile = document.createElement('div');
+    tile.className = 'bead-tile' + (b.type === 'spacer' ? ' is-spacer' : '');
+    tile.draggable = true;
+    tile.innerHTML = `
+      <img src="${b.image}" alt="${b.name}">
+      <span class="nm">${b.name}</span>
+      <span class="pr">${b.price > 0 ? '+' + b.price + ' Kč' : 'v ceně'}</span>`;
+    tile.onclick = () => addBead(enrichBead(b, activeTab));
+    tile.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('source', 'palette');
+      e.dataTransfer.setData('palette-slug', b.slug);
+      e.dataTransfer.setData('palette-cat', activeTab);
+      e.dataTransfer.effectAllowed = 'copy';
+      tile.classList.add('dragging');
+      onDragStart();
+    });
+    tile.addEventListener('dragend', () => {
+      tile.classList.remove('dragging');
+      onDragEnd();
+    });
+    c.appendChild(tile);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    activeTab = t.dataset.tab;
+    renderAll();
+  };
+});
+
+// ── Cílové délky ─────────────────────────────────────────────────
+function renderTargets() {
+  const c = document.getElementById('targets');
+  c.querySelectorAll('.target, .target-custom').forEach(n => n.remove());
+  TARGETS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'target' + (!customTarget && currentTarget.cm === t.cm ? ' active' : '');
+    btn.textContent = t.name + ' cm';
+    btn.onclick = () => { currentTarget = t; customTarget = null; renderAll(); };
+    c.appendChild(btn);
+  });
+  const custom = document.createElement('div');
+  custom.className = 'target-custom' + (customTarget ? ' active' : '');
+  custom.innerHTML = `<span>vl.</span><input type="number" min="10" max="30" step="0.5"
+                      value="${customTarget || ''}" placeholder="—" oninput="setCustomTarget(this.value)"><span>cm</span>`;
+  c.appendChild(custom);
+}
+function setCustomTarget(v) {
+  const n = parseFloat(v);
+  if (!isNaN(n) && n >= 10 && n <= 30) {
+    customTarget = n;
+    currentTarget = { cm: n, name: n };
+  } else {
+    customTarget = null;
+  }
+  renderAll();
+}
+
+// ── Akce nad sekvencí ───────────────────────────────────────────
+function addBead(bead) {
+  pushHistory();
+  const sym = document.getElementById('symmetry').checked;
+  const firstEmpty = sequence.findIndex(s => s.empty && s.category === bead.category);
+  if (firstEmpty !== -1) {
+    sequence[firstEmpty] = bead;
+    if (sym) {
+      const mirror = sequence.length - 1 - firstEmpty;
+      if (mirror !== firstEmpty && sequence[mirror] && sequence[mirror].empty && sequence[mirror].category === bead.category) {
+        sequence[mirror] = { ...bead };
+      }
+    }
+  } else {
+    sequence.push(bead);
+    if (sym && bead.category !== 'sep') sequence.unshift({ ...bead });
+  }
+  renderAll();
+}
+
+function addEmptySlot(category) {
+  pushHistory();
+  const sym = document.getElementById('symmetry').checked;
+  sequence.push(emptySlot(category));
+  if (sym) sequence.unshift(emptySlot(category));
+  renderAll();
+}
+
+function removeAt(idx) {
+  pushHistory();
+  sequence.splice(idx, 1);
+  renderAll();
+}
+
+function clearAll() {
+  if (sequence.length === 0) return;
+  if (!confirm('Vyčistit celý náramek?')) return;
+  pushHistory();
+  sequence = [];
+  renderAll();
+}
+
+function reverseStrand() {
+  if (sequence.length < 2) return;
+  pushHistory();
+  sequence.reverse();
+  renderAll();
+}
+
+function undo() {
+  if (history.length === 0) return;
+  sequence = history.pop();
+  renderAll();
+}
+
+// ── Drag/drop state ─────────────────────────────────────────────
+let isDragging = false;
+let dragSource = null; // 'palette' | 'sequence'
+
+function onDragStart(source) {
+  isDragging = true;
+  dragSource = source || dragSource || 'palette';
+  document.getElementById('sequence').classList.add('drag-active');
+  document.querySelectorAll('.drop-gap').forEach(g => g.classList.add('drag-active'));
+  if (dragSource === 'sequence') {
+    document.getElementById('trash').classList.add('show');
+  }
+}
+function onDragEnd() {
+  isDragging = false;
+  dragSource = null;
+  document.getElementById('sequence').classList.remove('drag-active');
+  document.querySelectorAll('.drop-gap, .seq-empty, .seq-bead').forEach(g => g.classList.remove('drag-over'));
+  document.getElementById('trash').classList.remove('show', 'drag-over');
+}
+
+// ── Render sekvence ─────────────────────────────────────────────
+function renderSequence() {
+  const c = document.getElementById('sequence');
+  c.innerHTML = '';
+  if (sequence.length === 0) {
+    c.innerHTML = '<div class="sequence-empty-msg">Otevři výběr kostry, nebo přetáhni první korálek z palety →</div>';
+    return;
+  }
+  c.appendChild(makeDropGap(0));
+  const hiIdx = sequence.findIndex(s => s.empty && s.category === activeTab);
+  sequence.forEach((item, i) => {
+    if (item.empty) c.appendChild(makeEmptySlot(item, i, i === hiIdx));
+    else c.appendChild(makeSeqBead(item, i));
+    c.appendChild(makeDropGap(i + 1));
+  });
+}
+
+function makeSeqBead(bead, idx) {
+  const el = document.createElement('div');
+  const sizeClass = bead.category === 'main' ? 'size-main'
+                  : bead.category === 'accent' ? 'size-accent'
+                  : (bead.type === 'spacer' ? 'size-spacer' : 'size-rocaille');
+  el.className = 'seq-bead ' + sizeClass;
+  el.draggable = true;
+  el.title = bead.name + ' — táhni pro přesun nebo klikni × pro smazání';
+  el.innerHTML = `<img src="${bead.image}" alt="${bead.name}"><span class="x">×</span>`;
+  // X delete
+  el.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); removeAt(idx); });
+  // Click anywhere else also deletes (intuitivní)
+  el.addEventListener('click', (e) => {
+    if (e.target.classList.contains('x')) return;
+    removeAt(idx);
+  });
+  // Drag z náramku
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('source', 'sequence');
+    e.dataTransfer.setData('move-idx', String(idx));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('dragging');
+    onDragStart('sequence');
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    onDragEnd();
+  });
+  // Drop ON bead = nahradí (z palety) nebo swap (zevnitř)
+  attachDropHandlers(el, () => idx, 'replace');
+  return el;
+}
+
+function makeEmptySlot(slot, idx, highlighted) {
+  const el = document.createElement('div');
+  const sizeClass = slot.category === 'main' ? 'size-main'
+                  : slot.category === 'accent' ? 'size-accent'
+                  : 'size-spacer';
+  el.className = 'seq-empty ' + sizeClass + (highlighted ? ' hi-target' : '');
+  const label = slot.category === 'main' ? 'M' : slot.category === 'accent' ? 'A' : '·';
+  el.textContent = label;
+  el.title = `prázdný slot (${slot.category}) — táhni sem korálek z palety, klikni pro odstranění`;
+  el.addEventListener('click', () => removeAt(idx));
+  attachDropHandlers(el, () => idx, 'replace');
+  return el;
+}
+
+function makeDropGap(idx) {
+  const g = document.createElement('div');
+  g.className = 'drop-gap';
+  attachDropHandlers(g, () => idx, 'insert');
+  return g;
+}
+
+// Univerzální drop handler — mode='replace' (na slot/bead) nebo 'insert' (do gapu)
+function attachDropHandlers(el, getIdx, mode) {
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const targetIdx = getIdx();
+    const source = e.dataTransfer.getData('source');
+    if (source === 'palette') {
+      const slug = e.dataTransfer.getData('palette-slug');
+      const cat = e.dataTransfer.getData('palette-cat');
+      const bead = POOL[cat]?.find(b => b.slug === slug);
+      if (!bead) return;
+      const enriched = enrichBead(bead, cat);
+      pushHistory();
+      if (mode === 'replace') {
+        sequence[targetIdx] = enriched;
+      } else {
+        sequence.splice(targetIdx, 0, enriched);
+      }
+      renderAll();
+    } else if (source === 'sequence') {
+      const fromIdx = parseInt(e.dataTransfer.getData('move-idx'));
+      if (isNaN(fromIdx)) return;
+      pushHistory();
+      const item = sequence[fromIdx];
+      if (mode === 'replace') {
+        if (fromIdx === targetIdx) return;
+        // Swap pozice s tím co je tam
+        const other = sequence[targetIdx];
+        sequence[fromIdx] = other;
+        sequence[targetIdx] = item;
+      } else {
+        // Insert do gapu — vytáhni z fromIdx a vlož na targetIdx (s ohledem na posun)
+        sequence.splice(fromIdx, 1);
+        const newIdx = fromIdx < targetIdx ? targetIdx - 1 : targetIdx;
+        sequence.splice(newIdx, 0, item);
+      }
+      renderAll();
+    }
+  });
+}
+
+// Trash zone — drop pro smazání
+const trash = document.getElementById('trash');
+trash.addEventListener('dragover', (e) => { e.preventDefault(); trash.classList.add('drag-over'); });
+trash.addEventListener('dragleave', () => trash.classList.remove('drag-over'));
+trash.addEventListener('drop', (e) => {
+  e.preventDefault();
+  trash.classList.remove('drag-over');
+  const source = e.dataTransfer.getData('source');
+  if (source === 'sequence') {
+    const fromIdx = parseInt(e.dataTransfer.getData('move-idx'));
+    if (!isNaN(fromIdx)) {
+      pushHistory();
+      sequence.splice(fromIdx, 1);
+      renderAll();
+    }
+  }
+});
+
+// ── Délka, cena, status ──────────────────────────────────────────
+function totalLengthMm() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return 0;
+  return BASE_LEN_MM + filled.reduce((s, b) => s + b.sizeMm, 0);
+}
+function totalLengthCm() { return totalLengthMm() / 10; }
+function totalPrice() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return 0;
+  return BASE_PRICE + filled.reduce((s, b) => s + (b.price || 0), 0);
+}
+function lengthStatus() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return { cls: 'empty', txt: 'prázdný' };
+  const cm = totalLengthCm();
+  const t = currentTarget.cm;
+  const diff = cm - t;
+  if (Math.abs(diff) <= 0.4) return { cls: 'ok', txt: '✓ ideální' };
+  if (diff < 0 && diff >= -1.5) return { cls: 'warn', txt: `chybí ${(-diff).toFixed(1).replace('.', ',')} cm` };
+  if (diff < -1.5) return { cls: 'under', txt: `chybí ${(-diff).toFixed(1).replace('.', ',')} cm` };
+  if (diff > 0 && diff <= 1.5) return { cls: 'warn', txt: `přes ${diff.toFixed(1).replace('.', ',')} cm` };
+  return { cls: 'over', txt: `přes ${diff.toFixed(1).replace('.', ',')} cm` };
+}
+
+// ── Render všeho ────────────────────────────────────────────────
+function renderAll() {
+  renderPalette();
+  renderTargets();
+  renderSequence();
+
+  const filled = sequence.filter(s => !s.empty);
+  const emptyCount = sequence.length - filled.length;
+  const cm = totalLengthCm();
+
+  document.getElementById('length-val').textContent = cm.toFixed(1).replace('.', ',') + ' cm';
+  document.getElementById('length-target-text').textContent = '/ ' + currentTarget.cm + ' cm';
+
+  const st = lengthStatus();
+  const stEl = document.getElementById('length-status');
+  stEl.textContent = st.txt;
+  stEl.className = 'length-status ' + st.cls;
+
+  const maxScale = currentTarget.cm * 1.5;
+  const pct = Math.min(100, (cm / maxScale) * 100);
+  const fill = document.getElementById('bar-fill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('over', cm > currentTarget.cm * 1.05);
+  document.getElementById('bar-target').style.left = ((currentTarget.cm / maxScale) * 100) + '%';
+
+  const counts = filled.reduce((acc, b) => {
+    if (b.category === 'main') acc.main++;
+    else if (b.category === 'accent') acc.accent++;
+    else acc.sep++;
+    return acc;
+  }, {main:0, accent:0, sep:0});
+  document.getElementById('stat-filled').textContent = filled.length;
+  document.getElementById('stat-empty').textContent = emptyCount;
+  document.getElementById('stat-mains').textContent = counts.main;
+  document.getElementById('stat-accents').textContent = counts.accent;
+  document.getElementById('stat-seps').textContent = counts.sep;
+
+  const p = totalPrice();
+  document.getElementById('price').textContent = p > 0 ? Math.round(p).toLocaleString('cs-CZ') + ' Kč' : '— Kč';
+
+  const cta = document.getElementById('cta');
+  cta.disabled = filled.length === 0;
+  if (filled.length === 0) {
+    cta.textContent = 'Přidej korálek';
+  } else if (emptyCount > 0) {
+    cta.textContent = `Pokračovat (${emptyCount} pr. slotů ignorováno) — ${Math.round(p).toLocaleString('cs-CZ')} Kč`;
+  } else {
+    cta.textContent = `Do košíku — ${Math.round(p).toLocaleString('cs-CZ')} Kč`;
+  }
+
+  const sh = document.getElementById('strand-summary');
+  if (sequence.length === 0) {
+    sh.textContent = 'začni výběrem kostry, nebo přidej korálek';
+  } else {
+    sh.textContent = `${filled.length}/${sequence.length} obsazeno · ${cm.toFixed(1).replace('.', ',')} cm`;
+  }
+
+  document.getElementById('undo-btn').disabled = history.length === 0;
+}
+
+// Init
+renderStartOverlay();
+renderAll();
+</script>
+</body>
+</html>

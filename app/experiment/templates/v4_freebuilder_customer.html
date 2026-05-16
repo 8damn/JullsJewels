@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>V4 FreeBuilder — zákazník</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#faf7f1;--surface:#fff;--ink:#1a1a1a;--muted:#6b6660;--accent:#0f766e;--accent-soft:#d1faf3;--border:#e8e0d2;--radius:10px;--ok:#16a34a;--warn:#ea580c;--danger:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .top h1{margin:0;font-size:1.1rem;font-weight:600}
+  .top a{color:var(--muted);text-decoration:none;font-size:.9rem;margin-left:1rem}
+
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 60px)}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+  /* ── PALETA ── */
+  .palette{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .palette-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+  .palette-header h2{margin:0;font-size:.95rem;font-weight:600}
+  .palette-header p{margin:.3rem 0 0;font-size:.78rem;color:var(--muted)}
+  .palette-header .hint{margin-top:.5rem;font-size:.75rem;color:var(--accent);background:var(--accent-soft);padding:.35rem .5rem;border-radius:6px;display:none}
+  .palette-header .hint.show{display:block}
+
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+  .tab{flex:1;padding:.65rem .3rem;border:none;background:none;cursor:pointer;font-size:.82rem;color:var(--muted);border-bottom:2px solid transparent}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface);font-weight:600}
+  .tab .badge{background:var(--accent);color:white;border-radius:10px;padding:.05rem .4rem;font-size:.65rem;margin-left:.3rem;display:none}
+  .tab .badge.show{display:inline-block}
+
+  .palette-list{flex:1;padding:1rem;overflow-y:auto}
+  .bead-card{display:flex;align-items:center;gap:.7rem;padding:.55rem;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:.35rem;transition:transform .1s,border-color .15s}
+  .bead-card:hover{border-color:var(--accent);transform:translateX(2px)}
+  .bead-card[draggable=true]{cursor:grab}
+  .bead-card[draggable=true]:active{cursor:grabbing}
+  .bead-card.dragging{opacity:.4}
+  .bead-card img{width:38px;height:38px;border-radius:50%;flex-shrink:0;pointer-events:none}
+  .bead-card.is-spacer img{width:34px;height:18px;border-radius:5px}
+  .bead-info{flex:1;min-width:0}
+  .bead-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bead-meta{font-size:.7rem;color:var(--muted)}
+
+  /* ── BUILDER ── */
+  .builder{padding:1.5rem 2rem;display:flex;flex-direction:column;gap:1.25rem;background:linear-gradient(180deg,var(--bg) 0%,var(--surface) 100%);overflow-y:auto}
+
+  /* Cílová délka */
+  .target-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem}
+  .target-card h3{margin:0 0 .5rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  .targets{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+  .target{padding:.4rem .9rem;background:var(--bg);border:1px solid var(--border);border-radius:18px;cursor:pointer;font-size:.85rem;color:var(--ink)}
+  .target.active{background:var(--accent);color:white;border-color:var(--accent)}
+  .target-custom{display:flex;align-items:center;gap:.3rem;padding:.4rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:18px;color:var(--muted)}
+  .target-custom input{width:55px;border:none;background:none;font-size:.85rem;font-family:inherit;color:var(--ink);text-align:right;font-weight:600}
+  .target-custom input:focus{outline:none}
+  .target-custom.active{background:var(--accent);border-color:var(--accent);color:white}
+  .target-custom.active input{color:white}
+
+  /* Length indicator */
+  .length-row{display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;gap:1rem;flex-wrap:wrap}
+  .length-stat{display:flex;align-items:baseline;gap:.5rem}
+  .length-val{font-size:1.5rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .length-target{font-size:.85rem;color:var(--muted)}
+  .length-status{font-size:.85rem;font-weight:600;padding:.25rem .7rem;border-radius:14px}
+  .length-status.ok{background:#dcfce7;color:var(--ok)}
+  .length-status.warn{background:#ffedd5;color:var(--warn)}
+  .length-status.under{background:#fef9c3;color:#a16207}
+  .length-status.over{background:#fee2e2;color:var(--danger)}
+  .length-status.empty{background:var(--bg);color:var(--muted)}
+  .bar-wrap{position:relative;margin-top:.4rem;height:8px}
+  .bar{height:100%;background:var(--bg);border-radius:4px;overflow:hidden;width:100%}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#0d9488);transition:width .3s,background .3s;width:0%}
+  .bar-fill.over{background:linear-gradient(90deg,var(--danger),#b91c1c)}
+  .bar-target{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.45}
+  .bar-target::after{content:'cíl';position:absolute;top:-15px;left:-10px;font-size:.65rem;color:var(--ink);opacity:.7;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+
+  /* Sekvence náramku */
+  .strand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem}
+  .strand-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem}
+  .strand-header h3{margin:0;font-size:.95rem}
+  .strand-header .empty-hint{color:var(--muted);font-size:.82rem;font-style:italic}
+
+  .sequence{display:flex;align-items:center;flex-wrap:wrap;gap:0;padding:1.5rem .75rem;background:linear-gradient(180deg,#fafaf6,#f4ede0);border-radius:8px;min-height:100px;position:relative}
+  .sequence::before{content:'';position:absolute;top:50%;left:1.2rem;right:1.2rem;height:1px;border-top:1px dashed #c7b896;z-index:0}
+
+  /* Bead (obsazený slot) */
+  .seq-bead{position:relative;cursor:pointer;z-index:1;transition:transform .15s}
+  .seq-bead:hover{transform:translateY(-2px)}
+  .seq-bead img{display:block;border-radius:50%;border:1px solid rgba(0,0,0,.18);background:white}
+  .seq-bead.size-main img    {width:30px;height:30px}
+  .seq-bead.size-accent img  {width:38px;height:38px}
+  .seq-bead.size-rocaille img{width:12px;height:12px}
+  .seq-bead.size-spacer img  {width:18px;height:10px;border-radius:4px}
+  .seq-bead .x{position:absolute;top:-6px;right:-6px;background:var(--danger);color:white;width:18px;height:18px;border-radius:50%;font-size:.75rem;line-height:1;display:none;align-items:center;justify-content:center;font-weight:700}
+  .seq-bead:hover .x{display:flex}
+
+  /* Prázdný slot */
+  .seq-empty{position:relative;cursor:pointer;z-index:1;display:flex;align-items:center;justify-content:center;border:2px dashed #b8a780;background:rgba(255,255,255,.5);color:#9c8c66;font-size:.7rem;font-weight:600;transition:transform .15s,border-color .15s,background .15s}
+  .seq-empty:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:scale(1.08)}
+  .seq-empty.size-main    {width:30px;height:30px;border-radius:50%}
+  .seq-empty.size-accent  {width:38px;height:38px;border-radius:50%}
+  .seq-empty.size-rocaille{width:12px;height:12px;border-radius:50%;font-size:.55rem}
+  .seq-empty.size-spacer  {width:22px;height:12px;border-radius:4px;font-size:.55rem}
+  .seq-empty.hi-target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--accent-soft)}50%{box-shadow:0 0 0 7px rgba(15,118,110,.12)}}
+
+  .drop-gap{flex:0 0 6px;height:42px;cursor:pointer;transition:flex-basis .15s;z-index:1;display:flex;align-items:center;justify-content:center;color:transparent}
+  .drop-gap:hover,.drop-gap.drag-over{flex-basis:30px;color:var(--accent)}
+  .drop-gap::after{content:'+';font-size:1.2rem;font-weight:300}
+
+  .sequence-empty{padding:1rem;text-align:center;color:var(--muted);font-size:.9rem;font-style:italic;width:100%}
+
+  /* Toolbar pod sekvencí — Sloty / Akce */
+  .strand-tools{margin-top:1rem;display:flex;flex-direction:column;gap:.6rem}
+  .tools-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+  .tools-row .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-right:.3rem}
+  .slot-add-btn{background:var(--bg);border:1px dashed var(--border);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.8rem;color:var(--ink);display:inline-flex;align-items:center;gap:.3rem}
+  .slot-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .slot-add-btn .dot{width:10px;height:10px;border-radius:50%;background:#999;display:inline-block}
+  .slot-add-btn .dot.main{width:11px;height:11px;background:#d4a98e}
+  .slot-add-btn .dot.accent{width:13px;height:13px;background:#8eaed4}
+  .slot-add-btn .dot.sep{width:6px;height:6px;background:#aaa}
+  .action-btn{background:var(--surface);border:1px solid var(--border);padding:.4rem .85rem;border-radius:6px;cursor:pointer;font-size:.82rem;color:var(--ink)}
+  .action-btn:hover{background:var(--bg)}
+  .action-btn:disabled{opacity:.4;cursor:not-allowed}
+  .toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.82rem;color:var(--ink);background:var(--surface);padding:.35rem .8rem;border-radius:18px;border:1px solid var(--border)}
+  .toggle input{cursor:pointer}
+
+  .live-hint{font-size:.78rem;color:var(--muted);text-align:center;margin-top:.5rem}
+  .live-hint kbd{background:var(--bg);padding:1px 5px;border-radius:3px;border:1px solid var(--border);font-family:inherit;font-size:.72rem}
+
+  /* Stats + Cena + CTA */
+  .summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;align-items:center}
+  .stat{display:flex;flex-direction:column;text-align:center}
+  .stat .v{font-size:1.25rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat .l{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .price-final{font-size:1.5rem;font-weight:700;color:var(--accent)}
+  .cta{background:var(--accent);color:white;border:none;padding:.95rem 1.5rem;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}
+  .cta:hover{filter:brightness(1.08)}
+  .cta:disabled{opacity:.4;cursor:not-allowed}
+
+  /* Inspirace */
+  .inspirations{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem}
+  .inspirations h3{margin:0 0 .6rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  .insp-list{display:flex;gap:.5rem;flex-wrap:wrap}
+  .insp{display:flex;align-items:center;gap:.5rem;padding:.4rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.82rem}
+  .insp:hover{background:var(--accent-soft);border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>V4 — FreeBuilder <span style="color:var(--muted);font-weight:400">/ zákaznický pohled</span></h1>
+  <div>
+    <a href="/experiment/">← rozcestník</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  {# ── PALETA ── #}
+  <div class="palette">
+    <div class="palette-header">
+      <h2>Korálky</h2>
+      <p>Klikni → vyplní první prázdný slot, nebo přidá na konec.</p>
+      <div class="hint" id="palette-hint">Máš prázdné sloty čekající na vyplnění.</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="main">6 mm <span class="badge" id="badge-main"></span></button>
+      <button class="tab" data-tab="accent">8 mm <span class="badge" id="badge-accent"></span></button>
+      <button class="tab" data-tab="sep">Rozdělovače <span class="badge" id="badge-sep"></span></button>
+    </div>
+    <div class="palette-list" id="palette-list"></div>
+  </div>
+
+  {# ── BUILDER ── #}
+  <div class="builder">
+
+    {# 1. Cílová délka + indikátor #}
+    <div class="target-card">
+      <h3>Cílová délka <span style="font-weight:400;text-transform:none;font-size:.78rem;color:var(--muted)">— jen orientační, můžeš ji ignorovat</span></h3>
+      <div class="targets" id="targets"></div>
+      <div class="length-row">
+        <div class="length-stat">
+          <span class="length-val" id="length-val">0,0 cm</span>
+          <span class="length-target" id="length-target-text"></span>
+        </div>
+        <span class="length-status" id="length-status">prázdný</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+        <div class="bar-target" id="bar-target" style="left:100%"></div>
+      </div>
+    </div>
+
+    {# 2. Sekvence náramku #}
+    <div class="strand-card">
+      <div class="strand-header">
+        <h3>Tvůj náramek</h3>
+        <span id="strand-summary" class="empty-hint">začni přidáním slotů, nebo přímo korálků z palety</span>
+      </div>
+      <div class="sequence" id="sequence">
+        <div class="sequence-empty">Klikni na korálek v paletě, nebo si nejdřív přidej prázdné sloty tlačítky níže ↓</div>
+      </div>
+
+      <div class="strand-tools">
+        <div class="tools-row">
+          <span class="label">Přidat sloty</span>
+          <button class="slot-add-btn" onclick="addEmptySlot('main')">
+            <span class="dot main"></span> + slot 6 mm
+          </button>
+          <button class="slot-add-btn" onclick="addEmptySlot('accent')">
+            <span class="dot accent"></span> + slot 8 mm
+          </button>
+          <button class="slot-add-btn" onclick="addEmptySlot('sep')">
+            <span class="dot sep"></span> + slot rozdělovač
+          </button>
+          <button class="slot-add-btn" onclick="addEmptySlots('main', 5)" style="margin-left:.4rem">
+            <span class="dot main"></span> + 5× 6 mm
+          </button>
+        </div>
+        <div class="tools-row">
+          <span class="label">Akce</span>
+          <label class="toggle"><input type="checkbox" id="symmetry"> Zrcadlit nové</label>
+          <button class="action-btn" onclick="undo()" id="undo-btn" disabled>↶ zpět</button>
+          <button class="action-btn" onclick="reverseStrand()">⇄ obrátit</button>
+          <button class="action-btn" onclick="removeLast()">⌫ smazat poslední</button>
+          <button class="action-btn" onclick="clearAll()" style="color:var(--danger)">🗑 vyčistit vše</button>
+        </div>
+      </div>
+
+      <p class="live-hint">
+        Klikni na korálek <kbd>obsazený</kbd> nebo <kbd>prázdný</kbd> v náramku → smaže ho.
+        Korálek z palety vyplní první prázdný slot vhodného typu, jinak se přidá na konec.
+      </p>
+    </div>
+
+    {# 3. Inspirace #}
+    <div class="inspirations">
+      <h3>Inspirace — jen kostry (prázdné sloty), korálky si vybereš sám</h3>
+      <div class="insp-list">
+        <button class="insp" onclick="loadSkeleton('5-3-5')">📿 5–3–5 (klasický)</button>
+        <button class="insp" onclick="loadSkeleton('3-3-3')">📿 3–3–3 (s rozdělovači)</button>
+        <button class="insp" onclick="loadSkeleton('2-1-2')">◦ 2–1–2 (minimalistický)</button>
+        <button class="insp" onclick="loadSkeleton('many')">📿 hodně 6 mm</button>
+        <button class="insp" onclick="loadSkeleton('mixed')">🎨 mixed kostra</button>
+      </div>
+    </div>
+
+    {# 4. Shrnutí + CTA #}
+    <div class="summary">
+      <div class="stat"><span class="v" id="stat-filled">0</span><span class="l">Vyplněných</span></div>
+      <div class="stat"><span class="v" id="stat-empty">0</span><span class="l">Prázdných</span></div>
+      <div class="stat"><span class="v" id="stat-mains">0</span><span class="l">6 mm</span></div>
+      <div class="stat"><span class="v" id="stat-accents">0</span><span class="l">8 mm</span></div>
+      <div class="stat"><span class="v price-final" id="price">— Kč</span><span class="l">Celkem</span></div>
+      <button class="cta" id="cta" disabled>Přidat alespoň jeden korálek</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const BEADS_6MM   = {{ beads_6mm|tojson }};
+const BEADS_8MM   = {{ beads_8mm|tojson }};
+const SEPARATORS  = {{ separators|tojson }};
+const BASE_PRICE  = 380;  // základní cena (vlasec, uzly, práce)
+const BASE_LEN_MM = 12;   // mm rezerva pro uzly/zakončení (jen pokud aspoň 1 korálek)
+
+// Reálné velikosti korálků v mm — odlišné šířky, jak v opravdové výrobě
+const SIZE_MM = {
+  main: 6,
+  accent: 8,
+  rocaille: 2.5,
+  spacer: 4,
+};
+
+const TARGETS = [
+  { cm: 16, name: '16 cm' },
+  { cm: 18, name: '18 cm' },
+  { cm: 20, name: '20 cm' },
+];
+let currentTarget = TARGETS[1];
+let customTarget = null;
+
+// Hlavní stav: sekvence prvků
+// Každý prvek: buď OBSAZENÝ bead {category, slug, name, image, price, sizeMm, type?, empty:false}
+// nebo PRÁZDNÝ SLOT {category, empty:true, sizeMm:0}  (prázdný slot je jen vizuální placeholder, nepočítá se do délky ani do ceny)
+let sequence = [];
+const history = [];
+
+const POOL = { main: BEADS_6MM, accent: BEADS_8MM, sep: SEPARATORS };
+function enrichBead(b, category) {
+  const sizeMm = category === 'main' ? SIZE_MM.main
+               : category === 'accent' ? SIZE_MM.accent
+               : (b.type === 'spacer' ? SIZE_MM.spacer : SIZE_MM.rocaille);
+  return { ...b, category, sizeMm, empty: false };
+}
+function emptySlot(category) {
+  return { category, empty: true, sizeMm: 0 };
+}
+
+let activeTab = 'main';
+
+// ── Render palety ────────────────────────────────────────────────
+function renderPalette() {
+  const c = document.getElementById('palette-list');
+  c.innerHTML = '';
+  POOL[activeTab].forEach(b => {
+    const card = document.createElement('div');
+    card.className = 'bead-card' + (b.type === 'spacer' ? ' is-spacer' : '');
+    card.draggable = true;
+    card.innerHTML = `
+      <img src="${b.image}" alt="${b.name}">
+      <div class="bead-info">
+        <div class="bead-name">${b.name}</div>
+        <div class="bead-meta">${b.price > 0 ? '+' + b.price + ' Kč' : 'v ceně'} · ${formatSize(b, activeTab)} mm</div>
+      </div>`;
+    card.onclick = () => addBead(enrichBead(b, activeTab));
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('bead-slug', b.slug);
+      e.dataTransfer.setData('bead-cat', activeTab);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    c.appendChild(card);
+  });
+
+  // Badges + hint o prázdných slotech
+  const emptyCounts = {main:0, accent:0, sep:0};
+  sequence.forEach(s => { if (s.empty) emptyCounts[s.category]++; });
+  ['main','accent','sep'].forEach(cat => {
+    const b = document.getElementById('badge-' + cat);
+    if (emptyCounts[cat] > 0) {
+      b.textContent = emptyCounts[cat];
+      b.classList.add('show');
+    } else {
+      b.classList.remove('show');
+    }
+  });
+  const totalEmpty = emptyCounts.main + emptyCounts.accent + emptyCounts.sep;
+  document.getElementById('palette-hint').classList.toggle('show', totalEmpty > 0);
+}
+function formatSize(b, cat) {
+  if (cat === 'main') return '6';
+  if (cat === 'accent') return '8';
+  return b.type === 'spacer' ? '4' : '2,5';
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    activeTab = t.dataset.tab;
+    renderAll();
+  };
+});
+
+// ── Cílové délky ─────────────────────────────────────────────────
+function renderTargets() {
+  const c = document.getElementById('targets');
+  c.innerHTML = '';
+  TARGETS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'target' + (!customTarget && currentTarget.cm === t.cm ? ' active' : '');
+    btn.textContent = t.name;
+    btn.onclick = () => { currentTarget = t; customTarget = null; renderAll(); };
+    c.appendChild(btn);
+  });
+  const custom = document.createElement('div');
+  custom.className = 'target-custom' + (customTarget ? ' active' : '');
+  custom.innerHTML = `<span>vlastní:</span>
+                      <input type="number" min="10" max="30" step="0.5"
+                             value="${customTarget || ''}" placeholder="—" oninput="setCustomTarget(this.value)">
+                      <span>cm</span>`;
+  c.appendChild(custom);
+}
+function setCustomTarget(v) {
+  const n = parseFloat(v);
+  if (!isNaN(n) && n >= 10 && n <= 30) {
+    customTarget = n;
+    currentTarget = { cm: n, name: n + ' cm' };
+  } else {
+    customTarget = null;
+  }
+  renderAll();
+}
+
+// ── Mutace sekvence ─────────────────────────────────────────────
+function pushHistory() {
+  history.push(JSON.parse(JSON.stringify(sequence)));
+  if (history.length > 50) history.shift();
+}
+
+// Klik na korálek v paletě:
+// 1) Pokud existuje prázdný slot ve stejné kategorii → vyplní první takový (zleva)
+// 2) Jinak: přidá na konec (s respektem k symetrii)
+function addBead(bead) {
+  pushHistory();
+  const sym = document.getElementById('symmetry').checked;
+
+  const firstEmpty = sequence.findIndex(s => s.empty && s.category === bead.category);
+  if (firstEmpty !== -1) {
+    sequence[firstEmpty] = bead;
+    // Symetrie: pokud je zapnutá a existuje empty na zrcadlové straně, vyplň i ji
+    if (sym) {
+      const mirror = sequence.length - 1 - firstEmpty;
+      if (mirror !== firstEmpty && sequence[mirror] && sequence[mirror].empty && sequence[mirror].category === bead.category) {
+        sequence[mirror] = { ...bead };
+      }
+    }
+  } else {
+    sequence.push(bead);
+    if (sym && bead.category !== 'sep') sequence.unshift({ ...bead });
+  }
+  renderAll();
+}
+
+function addEmptySlot(category) {
+  pushHistory();
+  const sym = document.getElementById('symmetry').checked;
+  sequence.push(emptySlot(category));
+  if (sym) sequence.unshift(emptySlot(category));
+  renderAll();
+}
+
+function addEmptySlots(category, n) {
+  pushHistory();
+  for (let i = 0; i < n; i++) sequence.push(emptySlot(category));
+  renderAll();
+}
+
+function insertAt(idx, bead) {
+  pushHistory();
+  sequence.splice(idx, 0, bead);
+  renderAll();
+}
+
+function removeAt(idx) {
+  pushHistory();
+  sequence.splice(idx, 1);
+  renderAll();
+}
+
+function removeLast() {
+  if (sequence.length === 0) return;
+  pushHistory();
+  sequence.pop();
+  renderAll();
+}
+
+function clearAll() {
+  if (sequence.length === 0) return;
+  if (!confirm('Vyčistit celý náramek (včetně prázdných slotů)?')) return;
+  pushHistory();
+  sequence = [];
+  renderAll();
+}
+
+function reverseStrand() {
+  if (sequence.length < 2) return;
+  pushHistory();
+  sequence.reverse();
+  renderAll();
+}
+
+function undo() {
+  if (history.length === 0) return;
+  sequence = history.pop();
+  renderAll();
+}
+
+// ── Kostry (skeletons) — vloží jen prázdné sloty ─────────────────
+function loadSkeleton(name) {
+  pushHistory();
+  // Konvence: M = main 6mm, A = accent 8mm, S = rozdělovač
+  // Kostra: jen prázdné sloty
+  let layout;
+  if (name === '5-3-5')   layout = 'MMMMM A A A MMMMM';
+  if (name === '3-3-3')   layout = 'MMM S MMM S A A A S MMM S MMM';
+  if (name === '2-1-2')   layout = 'MM A MM';
+  if (name === 'many')    layout = 'MMMMMMMMMMMMMMMMMM';
+  if (name === 'mixed')   layout = 'MM A MM S MM A MM S MM A MM';
+  if (!layout) return;
+  sequence = [];
+  layout.split(/\s+/).filter(Boolean).forEach(tok => {
+    for (const ch of tok) {
+      if (ch === 'M') sequence.push(emptySlot('main'));
+      if (ch === 'A') sequence.push(emptySlot('accent'));
+      if (ch === 'S') sequence.push(emptySlot('sep'));
+    }
+  });
+  renderAll();
+}
+
+// ── Délka, cena, status ──────────────────────────────────────────
+function totalLengthMm() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return 0;
+  return BASE_LEN_MM + filled.reduce((s, b) => s + b.sizeMm, 0);
+}
+function totalLengthCm() { return totalLengthMm() / 10; }
+function totalPrice() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return 0;
+  return BASE_PRICE + filled.reduce((s, b) => s + (b.price || 0), 0);
+}
+function lengthStatus() {
+  const filled = sequence.filter(s => !s.empty);
+  if (filled.length === 0) return { cls: 'empty', txt: 'prázdný' };
+  const cm = totalLengthCm();
+  const t = currentTarget.cm;
+  const diff = cm - t;
+  if (Math.abs(diff) <= 0.4) return { cls: 'ok', txt: '✓ ideální délka' };
+  if (diff < 0 && diff >= -1.5) return { cls: 'warn', txt: `chybí ${(-diff).toFixed(1).replace('.', ',')} cm` };
+  if (diff < -1.5) return { cls: 'under', txt: `chybí ${(-diff).toFixed(1).replace('.', ',')} cm` };
+  if (diff > 0 && diff <= 1.5) return { cls: 'warn', txt: `přes o ${diff.toFixed(1).replace('.', ',')} cm` };
+  return { cls: 'over', txt: `přes o ${diff.toFixed(1).replace('.', ',')} cm` };
+}
+
+// ── Render sekvence ──────────────────────────────────────────────
+function renderSequence() {
+  const c = document.getElementById('sequence');
+  c.innerHTML = '';
+  if (sequence.length === 0) {
+    c.innerHTML = '<div class="sequence-empty">Klikni na korálek v paletě, nebo si nejdřív přidej prázdné sloty tlačítky níže ↓</div>';
+    return;
+  }
+  c.appendChild(makeDropGap(0));
+  // Najdi první empty kompatibilní s activeTab — bude vizuálně highlightnutý
+  const hiIdx = sequence.findIndex(s => s.empty && s.category === activeTab);
+  sequence.forEach((item, i) => {
+    if (item.empty) {
+      c.appendChild(makeEmptySlot(item, i, i === hiIdx));
+    } else {
+      c.appendChild(makeSeqBead(item, i));
+    }
+    c.appendChild(makeDropGap(i + 1));
+  });
+}
+
+function makeSeqBead(bead, idx) {
+  const el = document.createElement('div');
+  const sizeClass = bead.category === 'main' ? 'size-main'
+                  : bead.category === 'accent' ? 'size-accent'
+                  : (bead.type === 'spacer' ? 'size-spacer' : 'size-rocaille');
+  el.className = 'seq-bead ' + sizeClass;
+  el.title = bead.name + ' — klikni pro smazání';
+  el.innerHTML = `<img src="${bead.image}" alt="${bead.name}"><span class="x">×</span>`;
+  el.onclick = () => removeAt(idx);
+  return el;
+}
+
+function makeEmptySlot(slot, idx, highlighted) {
+  const el = document.createElement('div');
+  const sizeClass = slot.category === 'main' ? 'size-main'
+                  : slot.category === 'accent' ? 'size-accent'
+                  : 'size-spacer'; // empty sep zobrazujeme jako malý spacer rect
+  el.className = 'seq-empty ' + sizeClass + (highlighted ? ' hi-target' : '');
+  const label = slot.category === 'main' ? 'M' : slot.category === 'accent' ? 'A' : '·';
+  el.textContent = label;
+  el.title = `prázdný slot (${slot.category}) — klikni pro odstranění, nebo vyplň korálkem z palety`;
+  el.onclick = () => removeAt(idx);
+  return el;
+}
+
+function makeDropGap(idx) {
+  const g = document.createElement('div');
+  g.className = 'drop-gap';
+  g.addEventListener('dragover', (e) => { e.preventDefault(); g.classList.add('drag-over'); });
+  g.addEventListener('dragleave', () => g.classList.remove('drag-over'));
+  g.addEventListener('drop', (e) => {
+    e.preventDefault();
+    g.classList.remove('drag-over');
+    const slug = e.dataTransfer.getData('bead-slug');
+    const cat = e.dataTransfer.getData('bead-cat');
+    const bead = POOL[cat]?.find(b => b.slug === slug);
+    if (bead) insertAt(idx, enrichBead(bead, cat));
+  });
+  return g;
+}
+
+// ── Render všeho ─────────────────────────────────────────────────
+function renderAll() {
+  renderPalette();
+  renderTargets();
+  renderSequence();
+
+  const filled = sequence.filter(s => !s.empty);
+  const emptyCount = sequence.length - filled.length;
+  const cm = totalLengthCm();
+
+  document.getElementById('length-val').textContent = cm.toFixed(1).replace('.', ',') + ' cm';
+  document.getElementById('length-target-text').textContent = '/ cíl ' + currentTarget.cm + ' cm';
+
+  const st = lengthStatus();
+  const stEl = document.getElementById('length-status');
+  stEl.textContent = st.txt;
+  stEl.className = 'length-status ' + st.cls;
+
+  // Bar: scaled to 1.5 × target (anything past = over)
+  const maxScale = currentTarget.cm * 1.5;
+  const pct = Math.min(100, (cm / maxScale) * 100);
+  const fill = document.getElementById('bar-fill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('over', cm > currentTarget.cm * 1.05);
+  // target marker at (target / maxScale) * 100%
+  document.getElementById('bar-target').style.left = ((currentTarget.cm / maxScale) * 100) + '%';
+
+  // Stats
+  const counts = filled.reduce((acc, b) => {
+    if (b.category === 'main') acc.main++;
+    else if (b.category === 'accent') acc.accent++;
+    else acc.sep++;
+    return acc;
+  }, {main:0, accent:0, sep:0});
+  document.getElementById('stat-filled').textContent = filled.length;
+  document.getElementById('stat-empty').textContent = emptyCount;
+  document.getElementById('stat-mains').textContent = counts.main;
+  document.getElementById('stat-accents').textContent = counts.accent;
+
+  const p = totalPrice();
+  document.getElementById('price').textContent = p > 0 ? Math.round(p).toLocaleString('cs-CZ') + ' Kč' : '— Kč';
+
+  // CTA — povolen pokud aspoň 1 obsazený, prázdné sloty jsou OK
+  const cta = document.getElementById('cta');
+  cta.disabled = filled.length === 0;
+  if (filled.length === 0) {
+    cta.textContent = 'Přidej alespoň jeden korálek';
+  } else if (emptyCount > 0) {
+    cta.textContent = `Pokračovat (${emptyCount} prázdných slotů se nevyrobí) — ${Math.round(p).toLocaleString('cs-CZ')} Kč`;
+  } else {
+    cta.textContent = `Přidat do košíku — ${Math.round(p).toLocaleString('cs-CZ')} Kč`;
+  }
+
+  const sh = document.getElementById('strand-summary');
+  if (sequence.length === 0) {
+    sh.textContent = 'začni přidáním slotů, nebo přímo korálků z palety';
+    sh.className = 'empty-hint';
+  } else {
+    sh.textContent = `${filled.length}/${sequence.length} obsazeno · ${cm.toFixed(1).replace('.', ',')} cm`;
+    sh.className = '';
+  }
+
+  document.getElementById('undo-btn').disabled = history.length === 0;
+}
+
+renderAll();
+</script>
+</body>
+</html>
